@@ -30,7 +30,7 @@ interface SidebarProps {
 }
 
 const navItemBaseClass =
-  "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-base-content/70";
+  "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-base-content/70 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/80";
 
 // Hover uses a lighter tint than the active background (bg-base-300/50) so a
 // hovered item next to the active one stays visually distinct instead of
@@ -119,7 +119,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
   };
 
   return (
-    <div className="flex h-full w-60 flex-col bg-base-200">
+    <div className="app-sidebar flex h-full w-60 flex-col">
       <div className="flex items-center justify-between px-4 pb-2 pt-3">
         <Link
           to="/"
