@@ -71,6 +71,9 @@
       },
       "OAUTH_KV": {
         "description": "KV namespace used by the Cloudflare Workers OAuth provider for MCP client registrations, grants, and tokens."
+      },
+      "WIDGET_AUDIT_DAILY_CALL_LIMIT": {
+        "description": "Explicit positive integer enabling and limiting operator-sponsored public widget provider calls per UTC day."
       }
     }
   },

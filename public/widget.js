@@ -145,33 +145,40 @@
     resultsView.style.display = name === "results" ? "block" : "none";
   }
 
-  function statusBadge(status) {
-    var conflicting = String(status).toUpperCase() === "CONFLICTING";
-    var cls = conflicting ? "badge badge-conflict" : "badge badge-ok";
-    var label = conflicting ? "Conflict" : "OK";
-    return '<span class="' + cls + '">' + label + "</span>";
+  function layerBadge(status) {
+    var s = String(status || "UNKNOWN").toUpperCase();
+    var ok = s === "AVAILABLE" || s === "COMPLETE";
+    var cls = ok ? "badge badge-ok" : "badge badge-conflict";
+    return '<span class="' + cls + '">' + s.replace(/_/g, " ") + "</span>";
   }
 
-  function checkRow(label, item) {
-    if (!item) return "";
+  function layerRow(label, layer) {
+    if (!layer) return "";
     return (
       '<li class="check"><span>' +
       label +
       "</span>" +
-      statusBadge(item.status) +
+      layerBadge(layer.status) +
       "</li>"
     );
   }
 
+  function scoreDisplay(scoreObj) {
+    if (!scoreObj || scoreObj.status === "NOT_COMPUTED" || scoreObj.value == null) {
+      return "—";
+    }
+    return String(scoreObj.value);
+  }
+
   function renderResults(data, domain, email) {
-    var risk = Number(data.reputationRiskScore);
-    var confidence = Number(data.overallDataConfidence);
-    var riskClass = risk >= 50 ? " score-value risk-high" : "score-value";
-    var report = data.reconciliationReport || {};
+    var summary = data.summary || {};
+    var layers = data.layers || {};
+    var search = layers.search || {};
     var keywords =
-      data.searchOverview && data.searchOverview.organicKeywords != null
-        ? data.searchOverview.organicKeywords
-        : "—";
+      search.organicKeywords != null ? search.organicKeywords : "—";
+    var traffic = search.organicTraffic != null ? search.organicTraffic : "—";
+    var report = data.report || {};
+    var pdfReady = report.available === true;
     var pdfUrl =
       API_BASE +
       "/api/widget/pdf?domain=" +
@@ -180,31 +187,39 @@
       encodeURIComponent(email);
 
     resultsView.innerHTML =
-      '<h3 class="title">Audit Results</h3>' +
+      '<h3 class="title">Public Baseline Audit</h3>' +
       '<p class="sub" style="margin-bottom:10px;">' +
       (data.domain || domain) +
+      " · " +
+      (data.status || "PARTIAL") +
       "</p>" +
       '<div class="score-row">' +
       '<div class="score"><div class="score-label">Reputation Risk</div>' +
-      '<div class="' +
-      riskClass +
-      '">' +
-      risk +
-      "/100</div></div>" +
+      '<div class="score-value">' +
+      scoreDisplay(summary.reputationRiskScore) +
+      "</div></div>" +
       '<div class="score"><div class="score-label">Data Confidence</div>' +
       '<div class="score-value">' +
-      confidence +
-      "%</div></div>" +
+      scoreDisplay(summary.overallDataConfidence) +
+      "</div></div>" +
       "</div>" +
       '<ul class="checks">' +
-      checkRow("Review rating", report.review_rating) +
-      checkRow("Review count", report.review_count) +
-      checkRow("BBB rating", report.bbb_rating) +
+      layerRow("Search (estimated)", search) +
+      layerRow("Reputation", layers.reputation) +
+      layerRow("Analytics", layers.analytics) +
+      layerRow("Brand DNA", layers.brand) +
       "</ul>" +
       '<p class="meta">Organic keywords: <strong>' +
       keywords +
+      "</strong> · Est. traffic: <strong>" +
+      traffic +
       "</strong></p>" +
-      '<button type="button" class="btn btn-accent" data-action="pdf">Download Boardroom-Ready PDF</button>' +
+      (pdfReady
+        ? '<button type="button" class="btn btn-accent" data-action="pdf">Download Boardroom-Ready PDF</button>'
+        : '<p class="meta">' +
+          (report.reason ||
+            "PDF export requires a persisted audit snapshot (not available yet).") +
+          "</p>") +
       '<button type="button" class="btn" style="margin-top:8px;background:#64748b;" data-action="again">Run Another Audit</button>';
 
     var pdfBtn = resultsView.querySelector('[data-action="pdf"]');
@@ -248,7 +263,14 @@
       .then(function (res) {
         return res.json().then(function (body) {
           if (!res.ok) {
-            throw new Error(body && body.error ? body.error : "Audit request failed");
+            var errObj = body && body.error;
+            var msg =
+              errObj && typeof errObj === "object" && errObj.message
+                ? errObj.message
+                : typeof errObj === "string"
+                  ? errObj
+                  : "Audit request failed";
+            throw new Error(msg);
           }
           return body;
         });

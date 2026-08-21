@@ -43,6 +43,10 @@ declare namespace Cloudflare {
     TURNSTILE_SECRET_KEY?: string;
     TURNSTILE_SITE_KEY?: string;
 
+    // Explicit hosted opt-in for operator-sponsored public widget lookups.
+    // Missing/invalid values keep paid public provider calls disabled.
+    WIDGET_AUDIT_DAILY_CALL_LIMIT?: string;
+
     // DataForSEO API Basic auth value (base64 of login:password)
     DATAFORSEO_API_KEY: string;
 
