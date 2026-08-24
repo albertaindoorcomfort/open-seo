@@ -409,7 +409,7 @@ export function createWidgetAuditSearchGateway(
   };
 }
 
-const productionSearchGateway = createWidgetAuditSearchGateway({
+export const productionSearchGateway = createWidgetAuditSearchGateway({
   runtimeEnv: env,
   now: () => new Date(),
   fetchProvider: fetchDomainRankOverview,

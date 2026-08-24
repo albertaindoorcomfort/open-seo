@@ -126,7 +126,7 @@ function unavailableLayer(
   return { status, reason };
 }
 
-function buildAuditResponse(
+export function buildAuditResponse(
   domain: string,
   generatedAt: string,
   search: SearchOverviewObservation,
