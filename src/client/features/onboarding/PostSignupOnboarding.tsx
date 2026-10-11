@@ -12,6 +12,7 @@ import {
   WORK_FOR_OPTIONS,
 } from "@/client/features/onboarding/onboardingModel";
 import { SearchConsoleOnboardingStep } from "@/client/features/onboarding/SearchConsoleOnboardingStep";
+import { LunarMark } from "@/client/components/LunarMark";
 
 type PostSignupOnboardingProps = {
   firstName: string;
@@ -59,19 +60,15 @@ export function PostSignupOnboarding({
       {accountMenu}
 
       <div className="text-center space-y-3">
-        <img
-          src="/transparent-logo.png"
-          alt="OpenSEO"
-          className="mx-auto size-10 rounded-lg"
-        />
+        <LunarMark />
         <p className="text-xs font-medium uppercase tracking-wide text-base-content/50">
           Step {step + 1} of {ONBOARDING_LAST_STEP + 1}
         </p>
         <h1 className="text-xl font-semibold">
           {title ??
             (firstName
-              ? `Welcome to OpenSEO, ${firstName}!`
-              : "Welcome to OpenSEO!")}
+              ? `Welcome to Lunar Optimize, ${firstName}!`
+              : "Welcome to Lunar Optimize!")}
         </h1>
         <p className="text-sm text-base-content/60">
           {helperText ?? "A few quick answers to set things up."}
@@ -116,7 +113,7 @@ export function PostSignupOnboarding({
           />
         ) : step === 2 ? (
           <OnboardingChoiceGroup
-            title="How did you find OpenSEO?"
+            title="How did you find Lunar Optimize?"
             options={[...SOURCE_OPTIONS]}
             selectedValues={answers.source ? [answers.source] : []}
             onToggle={(source) => updateAnswers({ source })}

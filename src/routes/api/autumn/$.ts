@@ -3,6 +3,7 @@ import type { autumnHandler } from "autumn-js/fetch";
 import { env } from "cloudflare:workers";
 import { isHostedAuthMode } from "@/lib/auth-mode";
 import { resolveHostedContext } from "@/middleware/ensure-user/hosted";
+import { isLunarCheckoutBlocked } from "@/server/billing/lunar-checkout-gate";
 
 let handlerPromise: Promise<ReturnType<typeof autumnHandler>> | undefined;
 
@@ -28,6 +29,13 @@ async function handleAutumnRequest(request: Request) {
     return new Response("Not found", {
       status: 404,
     });
+  }
+
+  if (isLunarCheckoutBlocked(request, env.LUNAR_OPTIMIZE_CHECKOUT_ENABLED)) {
+    return Response.json(
+      { error: "Lunar Optimize subscriptions are not available yet." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   return (await loadHandler())(request);

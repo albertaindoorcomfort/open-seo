@@ -19,6 +19,8 @@ import {
   AUTUMN_SEO_DATA_CREDITS_PER_USD,
   AUTUMN_SEO_DATA_TOP_UP_PLAN_ID,
   AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
+  LUNAR_MONTHLY_PRICE_USD,
+  LUNAR_MONTHLY_USAGE_CREDIT_USD,
   autumnSeoDataCreditsToUsd,
 } from "@/shared/billing";
 
@@ -32,6 +34,8 @@ export const Route = createFileRoute("/_app/billing")({
 });
 
 function BillingPage() {
+  const checkoutEnabled =
+    import.meta.env.VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED === "true";
   const { data: session, isPending: isSessionPending } = useSession();
   const [topUpAmount, setTopUpAmount] = useState("20");
   const [isPending, setIsPending] = useState(false);
@@ -154,15 +158,21 @@ function BillingPage() {
               <p className="mt-2 text-xs text-error">
                 You&rsquo;ve used all your credits.{" "}
                 {isFreePlan
-                  ? "Upgrade your plan to continue."
-                  : "Buy more credits below to continue."}
+                  ? checkoutEnabled
+                    ? "Upgrade your plan to continue."
+                    : "Subscription enrollment is being configured."
+                  : checkoutEnabled
+                    ? "Buy more credits below to continue."
+                    : "Credit purchases are currently unavailable."}
               </p>
             ) : totalRemaining < LOW_CREDITS_THRESHOLD_USD ? (
               <p className="mt-2 text-xs text-amber-600">
                 You&rsquo;re running low on credits.{" "}
-                {isFreePlan
-                  ? "Upgrade to get $10/month."
-                  : "Buy more credits below."}
+                {checkoutEnabled
+                  ? isFreePlan
+                    ? "Review the plan below."
+                    : "Buy more credits below."
+                  : "New purchases are currently unavailable."}
               </p>
             ) : null}
           </div>
@@ -174,18 +184,22 @@ function BillingPage() {
             </span>
           </div>
 
-          {isFreePlan ? (
+          {isFreePlan && !checkoutEnabled ? (
+            <p className="border-t border-base-300 pt-3 text-sm text-base-content/60">
+              Lunar Optimize subscription enrollment is being configured.
+            </p>
+          ) : isFreePlan ? (
             <div className="space-y-3 border-t border-base-300 pt-3">
               <div className="flex items-baseline justify-between gap-4">
                 <span className="text-sm font-medium">Base Plan</span>
                 <span className="text-sm font-medium tabular-nums">
-                  $10/month
+                  ${LUNAR_MONTHLY_PRICE_USD}/month
                 </span>
               </div>
               <ul className="space-y-1.5">
                 {[
-                  "Access to all OpenSEO features",
-                  "Includes $10.00 of Usage Credits each month",
+                  "Access to all Lunar Optimize features",
+                  `Includes $${LUNAR_MONTHLY_USAGE_CREDIT_USD.toFixed(2)} of metered usage credits each month`,
                 ].map((item) => (
                   <li
                     key={item}
@@ -231,7 +245,7 @@ function BillingPage() {
         </div>
 
         {/* Buy credits card — paid plan only */}
-        {!isFreePlan ? (
+        {!isFreePlan && checkoutEnabled ? (
           <div className="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3">
             <div>
               <span className="font-semibold">Buy credits</span>

@@ -32,7 +32,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       {
-        title: "OpenSEO",
+        title: "Lunar Optimize",
       },
       {
         charSet: "utf-8",

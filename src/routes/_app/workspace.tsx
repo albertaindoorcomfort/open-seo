@@ -14,7 +14,7 @@ import { AuthConfigErrorCard } from "@/client/components/AuthConfigErrorCard";
 import { UnauthenticatedErrorCard } from "@/client/components/UnauthenticatedErrorCard";
 import { SUBSCRIBE_ROUTE } from "@/shared/billing";
 
-export const Route = createFileRoute("/_app/")({
+export const Route = createFileRoute("/_app/workspace")({
   component: IndexRedirect,
 });
 
@@ -76,7 +76,7 @@ function IndexRedirect() {
       return (
         <div className="flex items-center justify-center h-full p-4">
           <UnauthenticatedErrorCard
-            message="Please sign in to access your OpenSEO workspace."
+            message="Please sign in to access your Lunar Optimize workspace."
             onRetry={() => {
               void refetch();
             }}

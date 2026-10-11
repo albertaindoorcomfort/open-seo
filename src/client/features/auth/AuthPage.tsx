@@ -100,11 +100,12 @@ export function AuthPageCard({
   return (
     <div className="w-full max-w-xs space-y-6">
       <div className="text-center space-y-3">
-        <img
-          src="/transparent-logo.png"
-          alt="OpenSEO"
-          className="mx-auto size-10 rounded-lg"
-        />
+        <div
+          aria-label="Lunar Optimize"
+          className="mx-auto flex size-10 items-center justify-center rounded-full border border-primary text-2xl text-primary"
+        >
+          <span aria-hidden="true">◐</span>
+        </div>
         <div>
           <h1 className="text-xl font-semibold">{title}</h1>
           {helperText ? (

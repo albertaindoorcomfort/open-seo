@@ -2,6 +2,10 @@ export const BILLING_ROUTE = "/billing";
 export const SUBSCRIBE_ROUTE = "/subscribe";
 
 export const AUTUMN_PAID_PLAN_ID = "base-plan";
+// Approved by the Lunar Optimize owner on 2026-10-11. These display terms
+// must match the Autumn product catalog before checkout is enabled.
+export const LUNAR_MONTHLY_PRICE_USD = 99;
+export const LUNAR_MONTHLY_USAGE_CREDIT_USD = 20;
 export const AUTUMN_SEO_DATA_TOP_UP_PLAN_ID = "credit-top-up";
 export const AUTUMN_PAID_PLAN_FEATURE_ID = "paid_plan";
 // Granted by both the free plan (now the Autumn Default, so every non-paid

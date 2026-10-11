@@ -35,6 +35,7 @@ declare namespace Cloudflare {
     LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID?: string;
     AUTUMN_SECRET_KEY?: string;
     AUTUMN_WEBHOOK_SECRET?: string;
+    LUNAR_OPTIMIZE_CHECKOUT_ENABLED?: string;
     // HMAC secret for the operator-only GDPR storage-erasure endpoint.
     GDPR_ERASURE_SECRET?: string;
 
@@ -66,6 +67,7 @@ interface ImportMetaEnv {
   readonly TURNSTILE_SITE_KEY?: string;
   readonly VITE_E2E_DOMAIN_FIXTURES?: string;
   readonly VITE_E2E_KEYWORD_FIXTURES?: string;
+  readonly VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED?: string;
 }
 
 interface ImportMeta {

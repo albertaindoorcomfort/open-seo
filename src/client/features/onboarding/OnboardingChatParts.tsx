@@ -7,8 +7,13 @@ import {
 } from "react";
 import { ArrowUp, Check, Globe, Loader2, Sparkles } from "lucide-react";
 import { FREE_ONBOARDING_QUESTION_LIMIT } from "@/shared/onboardingChat";
+import {
+  LUNAR_MONTHLY_PRICE_USD,
+  LUNAR_MONTHLY_USAGE_CREDIT_USD,
+} from "@/shared/billing";
 
-const DISCORD_URL = "https://discord.gg/c9uGs3cFXr";
+const checkoutEnabled =
+  import.meta.env.VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED === "true";
 
 export function SuggestedQuestions({
   questions,
@@ -65,24 +70,18 @@ export function WelcomeMessage({
       </div>
       <div className="min-w-0 flex-1 space-y-3 pt-0.5 text-sm">
         <div className="space-y-3 text-base-content/80">
-          <p>Hey, I’m Sam — welcome to OpenSEO.</p>
+          <p>Hey, I’m Sam — welcome to Lunar Optimize.</p>
           <p>
-            To get full access to OpenSEO, you need to upgrade to the paid plan.
-            But, I’m here if you have any questions.
+            The paid plan provides access to more research. Enrollment is being
+            configured, and I’m here if you have questions.
           </p>
           <p>
-            You can also{" "}
+            You can also email{" "}
             <a
-              href={DISCORD_URL}
-              target="_blank"
-              rel="noreferrer"
+              href="mailto:xander@lunar-project.com"
               className="link link-primary"
             >
-              join the Discord
-            </a>{" "}
-            or email{" "}
-            <a href="mailto:ben@openseo.so" className="link link-primary">
-              ben@openseo.so
+              xander@lunar-project.com
             </a>{" "}
             if you have any questions I can’t help you with.
           </p>
@@ -100,14 +99,20 @@ export function WelcomeMessage({
             Upgrade to run keyword research, rank tracking, and site audits on{" "}
             {domain}.
           </p>
-          <button
-            type="button"
-            className="btn btn-primary btn-xs mt-2"
-            disabled={isStartingCheckout}
-            onClick={onUpgrade}
-          >
-            {isStartingCheckout ? "Redirecting..." : "Upgrade"}
-          </button>
+          {checkoutEnabled ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-xs mt-2"
+              disabled={isStartingCheckout}
+              onClick={onUpgrade}
+            >
+              {isStartingCheckout ? "Redirecting..." : "Upgrade"}
+            </button>
+          ) : (
+            <p className="mt-2 text-base-content/70">
+              Enrollment is being configured.
+            </p>
+          )}
           {checkoutError ? (
             <p className="mt-2 text-error">{checkoutError}</p>
           ) : null}
@@ -134,7 +139,7 @@ export function UpgradeSidebar({
     "Keyword research, backlinks, rank tracking & site audits",
     "Google Search Console — read-only, no credits, no Google Cloud setup",
     "Connect Claude, Cursor, Codex & other MCP clients",
-    "Top-up credits roll over and never expire",
+    "Includes metered monthly data credits",
   ];
   const used = Math.min(questionsUsed, FREE_ONBOARDING_QUESTION_LIMIT);
   const progress = (used / FREE_ONBOARDING_QUESTION_LIMIT) * 100;
@@ -146,7 +151,9 @@ export function UpgradeSidebar({
           <Globe className="size-4" />
         </span>
         <div className="min-w-0">
-          <p className="font-medium text-base-content/80">Previewing OpenSEO</p>
+          <p className="font-medium text-base-content/80">
+            Previewing Lunar Optimize
+          </p>
           <p className="truncate" title={domain}>
             {domain}
           </p>
@@ -156,12 +163,14 @@ export function UpgradeSidebar({
       <div className="flex flex-1 flex-col gap-5 px-6 py-6">
         <div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-semibold tracking-tight">$10</span>
+            <span className="text-3xl font-semibold tracking-tight">
+              ${LUNAR_MONTHLY_PRICE_USD}
+            </span>
             <span className="text-sm text-base-content/55">/month</span>
           </div>
           <p className="mt-1.5 text-xs leading-relaxed text-base-content/55">
-            Includes $10 of usage credits every month, plus a 30-day money-back
-            guarantee.
+            Includes ${LUNAR_MONTHLY_USAGE_CREDIT_USD} of metered data credits
+            each month.
           </p>
         </div>
 
@@ -178,26 +187,20 @@ export function UpgradeSidebar({
         </ul>
 
         <div className="mt-auto space-y-3 pt-2">
-          <button
-            type="button"
-            className="btn btn-primary w-full"
-            disabled={isStartingCheckout}
-            onClick={onUpgrade}
-          >
-            {isStartingCheckout ? "Redirecting..." : "Upgrade to continue"}
-          </button>
-          <p className="text-center text-xs leading-relaxed text-base-content/55">
-            Want advice from other OpenSEO users?{" "}
-            <a
-              href={DISCORD_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="link link-primary"
+          {checkoutEnabled ? (
+            <button
+              type="button"
+              className="btn btn-primary w-full"
+              disabled={isStartingCheckout}
+              onClick={onUpgrade}
             >
-              Join the Discord
-            </a>
-            .
-          </p>
+              {isStartingCheckout ? "Redirecting..." : "Upgrade to continue"}
+            </button>
+          ) : (
+            <p className="text-center text-xs text-base-content/55">
+              Enrollment is being configured.
+            </p>
+          )}
         </div>
       </div>
 
@@ -231,19 +234,20 @@ export function ChatGate({
           That’s all {FREE_ONBOARDING_QUESTION_LIMIT} free questions
         </p>
         <p className="mx-auto mt-1 max-w-md text-xs text-base-content/70">
-          Upgrade to keep working with Sam and unlock the full OpenSEO app.
+          {checkoutEnabled
+            ? "Upgrade to keep working with Sam and unlock the full Lunar Optimize app."
+            : "Enrollment is being configured. Your saved workspace remains available."}
         </p>
-        <button
-          type="button"
-          className="btn btn-primary btn-sm mt-3"
-          disabled={isStartingCheckout}
-          onClick={onUpgrade}
-        >
-          {isStartingCheckout ? "Redirecting..." : "Upgrade to continue"}
-        </button>
-        <p className="mt-2 text-xs text-base-content/45">
-          30-day money-back guarantee
-        </p>
+        {checkoutEnabled ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm mt-3"
+            disabled={isStartingCheckout}
+            onClick={onUpgrade}
+          >
+            {isStartingCheckout ? "Redirecting..." : "Upgrade to continue"}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -252,7 +256,7 @@ export function ChatGate({
 export function ChatComposer({
   busy,
   onSend,
-  placeholder = "Ask Sam about your strategy or OpenSEO…",
+  placeholder = "Ask Sam about your strategy or Lunar Optimize…",
 }: {
   busy: boolean;
   onSend: (text: string) => void;
