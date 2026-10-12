@@ -1,5 +1,5 @@
-// A separate Lunar price and usage allowance have not been approved. The
-// upstream Autumn plan must never become a Lunar checkout by accident.
+// Lunar's $99/month plan and $20 monthly metered credits are approved, but
+// the matching Autumn catalog and checkout flow have not been verified.
 export function isLunarCheckoutBlocked(
   request: Pick<Request, "method" | "url">,
   enabled: string | undefined,
