@@ -13,6 +13,7 @@ import type {
 import type { RankTrackingConfig } from "@/types/schemas/rank-tracking";
 import { KEYWORDS_PER_BATCH } from "@/shared/rank-tracking";
 import { pgStep } from "@/server/workflows/pgStep";
+import { inDataforseoSampleMode } from "@/server/lib/dataforseo/sample";
 
 const SINGLE_ATTEMPT_STEP_CONFIG = {
   retries: { limit: 0, delay: "1 second" as const },
@@ -110,7 +111,8 @@ async function checkBatchLive(
       );
     }
   }
-  if (results.length > 0) {
+  // Sample rank results (no DataForSEO key or credits) are never stored.
+  if (results.length > 0 && !(await inDataforseoSampleMode())) {
     await RankTrackingRepository.insertSnapshots(
       mapResultsToSnapshotRows(ctx.runId, results),
     );
@@ -235,9 +237,11 @@ async function collectQueuedRound(
   }
 
   if (completed.length > 0) {
-    await RankTrackingRepository.insertSnapshots(
-      mapResultsToSnapshotRows(ctx.runId, completed),
-    );
+    if (!(await inDataforseoSampleMode())) {
+      await RankTrackingRepository.insertSnapshots(
+        mapResultsToSnapshotRows(ctx.runId, completed),
+      );
+    }
     // Progress for the UI; finalize recounts from the DB anyway.
     const snapshots = await RankTrackingRepository.getSnapshotsForRun(
       ctx.runId,

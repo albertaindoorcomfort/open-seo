@@ -2,6 +2,7 @@ import {
   Bookmark,
   Bot,
   ClipboardCheck,
+  FileText,
   Globe,
   LayoutDashboard,
   Link2,
@@ -26,6 +27,11 @@ const projectNavItems = [
     to: "/p/$projectId/keywords" as const,
     label: "Keyword Research",
     icon: Search,
+  },
+  {
+    to: "/p/$projectId/content-score" as const,
+    label: "Content Score",
+    icon: FileText,
   },
   {
     to: "/p/$projectId/saved" as const,
@@ -107,6 +113,7 @@ export function getProjectNavGroups(projectId: string) {
       label: "Research",
       items: [
         byPath("/p/$projectId/keywords"),
+        byPath("/p/$projectId/content-score"),
         byPath("/p/$projectId/domain"),
         byPath("/p/$projectId/backlinks"),
         byPath("/p/$projectId/brand-lookup"),

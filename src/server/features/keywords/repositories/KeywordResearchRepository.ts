@@ -21,6 +21,7 @@ import {
   SavedKeywordTagsRepository,
   type SavedKeywordTagRecord,
 } from "./SavedKeywordTagsRepository";
+import { dataforseoSampleReason } from "@/server/lib/dataforseo/sample";
 
 type SavedKeywordRecord = typeof savedKeywords.$inferSelect;
 type KeywordMetricRecord = typeof keywordMetrics.$inferSelect;
@@ -70,6 +71,8 @@ async function upsertKeywordMetric(params: {
   intent: string | null;
   monthlySearchesJson: string;
 }) {
+  // Sample keyword metrics are shown, never stored as this project's metrics.
+  if (dataforseoSampleReason() !== null) return;
   const fetchedAt = new Date().toISOString();
 
   await db

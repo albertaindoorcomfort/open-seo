@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [tsConfigPaths()],
   test: {
     environment: "node",
+    // No test may reach a paid data provider (src/test-setup/no-paid-network.ts).
+    setupFiles: ["./src/test-setup/no-paid-network.ts"],
     include: ["src/**/*.test.ts"],
     restoreMocks: true,
     clearMocks: true,

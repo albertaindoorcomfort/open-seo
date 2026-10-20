@@ -1,6 +1,7 @@
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { toSqliteTimestamp } from "@/server/features/rank-tracking/rankTrackingTimestamps";
 import { AppError } from "@/server/lib/errors";
+import { inDataforseoSampleMode, sampleRankPosition } from "@/server/lib/dataforseo/sample";
 import type { ComparePeriod } from "@/types/schemas/rank-tracking";
 import type {
   RankTrackingDeviceResult,
@@ -129,6 +130,23 @@ export async function getLatestResults(
 
     if (!latestStartedAt || snapshot.checkedAt > latestStartedAt) {
       latestStartedAt = snapshot.checkedAt;
+    }
+  }
+
+  // Sample mode: rank checks store nothing, so show deterministic sample
+  // positions for keywords without a stored result (the "Sample data" banner
+  // is on screen). Stored results, if any, are left as they are.
+  if (await inDataforseoSampleMode()) {
+    for (const row of rows.values()) {
+      for (const device of ["desktop", "mobile"] as const) {
+        if (row[device].position !== null || row[device].rankingUrl !== null) continue;
+        const position = sampleRankPosition(row.keyword, device);
+        row[device] = {
+          ...row[device],
+          position,
+          rankingUrl: position ? `https://${config.domain}/sample-page` : null,
+        };
+      }
     }
   }
 

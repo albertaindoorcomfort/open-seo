@@ -9,7 +9,14 @@ import {
   SerpApi,
 } from "dataforseo-client";
 import { AppError } from "@/server/lib/errors";
-import { getRequiredEnvValue } from "@/server/lib/runtime-env";
+import {
+  markDataforseoLive,
+  parseRequestBody,
+  readDataforseoKey,
+  sampleDataforseoBody,
+  sampleReasonFor,
+  setDataforseoSampleReason,
+} from "@/server/lib/dataforseo/sample";
 import type { ErrorCode } from "@/shared/error-codes";
 
 const API_BASE = "https://api.dataforseo.com";
@@ -50,6 +57,16 @@ function formatDataforseoErrorPayload(value: unknown): string {
     : text;
 }
 
+/** Task-level status code of a DataForSEO body (HTTP 200 can still carry a refused task). */
+async function firstTaskStatus(response: Response): Promise<number | undefined> {
+  try {
+    const body = (await response.clone().json()) as { tasks?: Array<{ status_code?: number }> };
+    return body.tasks?.[0]?.status_code;
+  } catch {
+    return undefined;
+  }
+}
+
 function formatDataforseoRequestPath(url: RequestInfo): string {
   const rawUrl = typeof url === "string" ? url : url.url;
   try {
@@ -70,7 +87,18 @@ function createAuthenticatedFetch(
   maxServerErrorRetries = DATAFORSEO_MAX_RETRIES,
 ) {
   return async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
-    const apiKey = await getRequiredEnvValue("DATAFORSEO_API_KEY");
+    const rawUrl = typeof url === "string" ? url : url.url;
+    // Lunar Optimize: no key, or a refusal for auth, credits or quota, answers
+    // with labelled sample data (sample.ts) so every screen keeps working.
+    const sample = (reason: Parameters<typeof setDataforseoSampleReason>[0]) => {
+      setDataforseoSampleReason(reason);
+      return new Response(JSON.stringify(sampleDataforseoBody(rawUrl, parseRequestBody(init?.body))), {
+        status: 200,
+        headers: { "content-type": "application/json", "x-lunar-sample": reason },
+      });
+    };
+    const apiKey = await readDataforseoKey();
+    if (apiKey === null) return sample("no_key");
     const headers = new Headers(init?.headers);
     headers.set("Authorization", `Basic ${apiKey}`);
     // Resolve the signal once so retries share the overall request timeout
@@ -80,7 +108,15 @@ function createAuthenticatedFetch(
 
     for (let attempt = 0; ; attempt++) {
       const response = await fetch(url, { ...init, headers, signal });
-      if (response.ok) return response;
+      if (response.ok) {
+        const taskCode = await firstTaskStatus(response);
+        const reason = sampleReasonFor(response.status, taskCode);
+        if (reason) return sample(reason);
+        markDataforseoLive();
+        return response;
+      }
+      const httpReason = sampleReasonFor(response.status);
+      if (httpReason) return sample(httpReason);
 
       // Transient upstream 5xx on an idempotent read -> back off and retry.
       if (response.status >= 500 && attempt < maxServerErrorRetries) {

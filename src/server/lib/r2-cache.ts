@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { sortBy } from "remeda";
+import { dataforseoSampleReason } from "@/server/lib/dataforseo/sample";
 
 /**
  * Cache TTL constants in seconds.
@@ -61,6 +62,8 @@ export async function setCached<T>(
   ttlSeconds: number,
   metadata: Record<string, string> = {},
 ): Promise<void> {
+  // Sample data is never cached, so it cannot be served as a measurement once a key or credits exist.
+  if (dataforseoSampleReason() !== null) return;
   await env.R2.put(`${CACHE_PREFIX}${key}`, JSON.stringify(data), {
     httpMetadata: { contentType: "application/json" },
     customMetadata: {
