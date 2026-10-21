@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
 import { requireAuthenticatedContext } from "@/serverFunctions/middleware";
 import { dataforseoSampleReason } from "@/server/lib/dataforseo/sample";
+import { hasGoogleSocialConfig } from "@/lib/auth";
 
 export const getSeoApiKeyStatus = createServerFn({ method: "GET" })
   .middleware(requireAuthenticatedContext)
@@ -12,3 +13,9 @@ export const getSeoApiKeyStatus = createServerFn({ method: "GET" })
     const reason = configured ? dataforseoSampleReason() : "no_key";
     return { configured, sample: reason !== null, reason };
   });
+
+// Public (no session): which sign-in methods this deployment offers, so the
+// auth pages can hide Google when its ids are unset. Booleans only.
+export const getAuthOptions = createServerFn({ method: "GET" }).handler(() => ({
+  google: hasGoogleSocialConfig(),
+}));

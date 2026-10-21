@@ -1,5 +1,9 @@
 import type { Autumn } from "autumn-js";
 import { getRequiredEnvValue } from "@/server/lib/runtime-env";
+import {
+  placeholderAutumn,
+  usesPlaceholderBilling,
+} from "@/server/billing/autumn-placeholder";
 
 let autumnPromise: Promise<Autumn> | undefined;
 
@@ -37,15 +41,34 @@ function loadAutumn(): Promise<Autumn> {
 
 /** Shape-preserving lazy facade over the SDK client: call sites keep the
  *  plain `autumn.check(...)` form. Covers only the methods we use — add a
- *  line here when adopting a new one. */
+ *  line here when adopting a new one. With no AUTUMN_SECRET_KEY every call
+ *  goes to the local placeholder ledger instead (autumn-placeholder.ts). */
 export const autumn = {
-  check: (...args: Parameters<Autumn["check"]>) =>
-    loadAutumn().then((client) => client.check(...args)),
-  track: (...args: Parameters<Autumn["track"]>) =>
-    loadAutumn().then((client) => client.track(...args)),
+  check: async (
+    ...args: Parameters<Autumn["check"]>
+  ): ReturnType<Autumn["check"]> =>
+    (await usesPlaceholderBilling())
+      ? (placeholderAutumn.check(args[0]) as unknown as ReturnType<
+          Autumn["check"]
+        >)
+      : loadAutumn().then((client) => client.check(...args)),
+  track: async (
+    ...args: Parameters<Autumn["track"]>
+  ): ReturnType<Autumn["track"]> =>
+    (await usesPlaceholderBilling())
+      ? (placeholderAutumn.track(args[0]) as unknown as ReturnType<
+          Autumn["track"]
+        >)
+      : loadAutumn().then((client) => client.track(...args)),
   customers: {
-    getOrCreate: (...args: Parameters<Autumn["customers"]["getOrCreate"]>) =>
-      loadAutumn().then((client) => client.customers.getOrCreate(...args)),
+    getOrCreate: async (
+      ...args: Parameters<Autumn["customers"]["getOrCreate"]>
+    ): ReturnType<Autumn["customers"]["getOrCreate"]> =>
+      (await usesPlaceholderBilling())
+        ? (placeholderAutumn.customers.getOrCreate(
+            args[0],
+          ) as unknown as ReturnType<Autumn["customers"]["getOrCreate"]>)
+        : loadAutumn().then((client) => client.customers.getOrCreate(...args)),
   },
 };
 

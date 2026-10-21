@@ -131,6 +131,11 @@ function SignUpPage() {
         captureClientEvent("auth:sign_up_success", {
           redirect_to: redirectTo,
         });
+        // No verification email configured: the server signed the user in.
+        if (result.data?.token) {
+          window.location.assign(postSignupRedirect);
+          return;
+        }
         void navigate({
           to: "/verify-email",
           search: getVerifyEmailSearch(email, postSignupRedirect),

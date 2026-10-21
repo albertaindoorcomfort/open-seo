@@ -24,6 +24,8 @@ import {
   sendHostedVerificationEmail,
   upsertHostedSignupContact,
 } from "@/server/email/loops";
+import { usesPlaceholderBilling } from "@/server/billing/autumn-placeholder";
+import { isEmailAllowed } from "@/server/auth/signup-allowlist";
 
 const hostedBaseUrlSchema = z
   .string()
@@ -43,7 +45,11 @@ function createAuth() {
   const baseUrl = isHostedAuthMode(env.AUTH_MODE)
     ? getHostedBaseUrl()
     : "http://localhost";
-  const bypassEmail = Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true";
+  // Without Loops there is no way to send mail, so verification is skipped
+  // (and switches on by itself once the Loops names are set).
+  const hasEmail = hasHostedAuthEmailConfig();
+  const bypassEmail =
+    Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true" || !hasEmail;
   const baseAuthConfig = createBaseAuthConfig();
 
   // Turnstile captcha on signup — hosted only. Enforcement is driven by the
@@ -74,6 +80,12 @@ function createAuth() {
       resetPasswordTokenExpiresIn: 60 * 60,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
+        if (!hasEmail) {
+          console.warn(
+            "Password reset email skipped: LOOPS_API_KEY is not set",
+          );
+          return;
+        }
         await sendHostedPasswordResetEmail({
           email: user.email,
           resetUrl: url,
@@ -124,6 +136,26 @@ function createAuth() {
                 message: "Please sign up with a non-disposable email address.",
               });
             }
+            // Invite-only while billing is the placeholder ledger.
+            if (
+              isHostedAuthMode(env.AUTH_MODE) &&
+              (await usesPlaceholderBilling()) &&
+              !isEmailAllowed(
+                user.email,
+                Reflect.get(env, "LUNAR_OPTIMIZE_ALLOWED_EMAILS") as
+                  | string
+                  | undefined,
+              )
+            ) {
+              throw new APIError("FORBIDDEN", {
+                message: "Sign-up is by invitation only for now.",
+              });
+            }
+            // No mail provider: nothing can verify the address, so the
+            // account starts verified (the client route guards read this).
+            if (isHostedAuthMode(env.AUTH_MODE) && !hasEmail) {
+              return { data: { ...user, emailVerified: true } };
+            }
             return { data: user };
           },
           after: async (user) => {
@@ -163,6 +195,10 @@ async function syncHostedSignupContact(user: {
   email: string;
   name?: string | null;
 }) {
+  if (!hasHostedAuthEmailConfig()) {
+    console.info("Loops contact sync skipped: LOOPS_API_KEY is not set");
+    return;
+  }
   try {
     await upsertHostedSignupContact({
       userId: user.id,
@@ -226,7 +262,8 @@ function getSocialProviders() {
   // (createBaseAuthConfig) with its own creds — so it must NOT require the
   // social-login config here, otherwise getAuth() construction would be coupled
   // to GSC creds rather than just BETTER_AUTH_SECRET.
-  if (!isHostedAuthMode(env.AUTH_MODE)) {
+  // Google sign-in is optional: with no Google ids, email and password only.
+  if (!isHostedAuthMode(env.AUTH_MODE) || !hasGoogleSocialConfig()) {
     return {};
   }
 
@@ -256,6 +293,12 @@ function getGoogleSocialProviderConfig() {
   };
 }
 
+export function hasGoogleSocialConfig() {
+  return Boolean(
+    env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim(),
+  );
+}
+
 function hasHostedAuthEmailConfig() {
   const loopsVars = [
     "LOOPS_API_KEY",
@@ -271,14 +314,10 @@ function hasHostedAuthEmailConfig() {
 
 export function hasHostedAuthConfig() {
   try {
+    // Google and Loops are optional (see getSocialProviders and createAuth).
     getHostedBaseUrl();
     getHostedSecret();
-    getGoogleSocialProviderConfig();
-    return (
-      hasHostedTurnstileConfig(env) &&
-      (Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true" ||
-        hasHostedAuthEmailConfig())
-    );
+    return hasHostedTurnstileConfig(env);
   } catch {
     return false;
   }

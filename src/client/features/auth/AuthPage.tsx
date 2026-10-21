@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
+import { getAuthOptions } from "@/serverFunctions/config";
 import {
   getCurrentAuthRedirect,
   getOAuthSignedQuery,
@@ -39,17 +41,27 @@ export function AuthMethodChooser({
   onContinueWithGoogle: () => void;
   onContinueWithEmail: () => void;
 }) {
+  // Google sign-in shows only when this deployment has its ids set.
+  const options = useQuery({
+    queryKey: ["auth-options"],
+    queryFn: () => getAuthOptions(),
+    staleTime: Infinity,
+  });
+  const showGoogle = options.data?.google === true;
+
   return (
     <div className="space-y-3">
-      <button
-        type="button"
-        className="btn w-full border border-black/10 bg-white text-neutral-900 hover:border-black/20 hover:bg-neutral-50 disabled:bg-white disabled:text-neutral-500 disabled:opacity-70"
-        onClick={onContinueWithGoogle}
-        disabled={disabled || isBusy}
-      >
-        <GoogleLogo />
-        {isBusy ? "Opening Google..." : googleLabel}
-      </button>
+      {showGoogle ? (
+        <button
+          type="button"
+          className="btn w-full border border-black/10 bg-white text-neutral-900 hover:border-black/20 hover:bg-neutral-50 disabled:bg-white disabled:text-neutral-500 disabled:opacity-70"
+          onClick={onContinueWithGoogle}
+          disabled={disabled || isBusy}
+        >
+          <GoogleLogo />
+          {isBusy ? "Opening Google..." : googleLabel}
+        </button>
+      ) : null}
 
       <button
         type="button"
