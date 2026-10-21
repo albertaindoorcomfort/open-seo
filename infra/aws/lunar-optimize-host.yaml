@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Lunar Optimize production host for optimize.projectlunar.ai. One small EC2 instance running the open-seo self-host
+  container behind Caddy (automatic TLS). SSM Session Manager only; no SSH, no inbound port but 80/443. App settings
+  come from one Secrets Manager secret at boot and are never written to the template or the instance user data.
+  Separate stack: shares nothing with the Studio box or the HVAC box.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: A public subnet (the instance needs a public address for Caddy's certificate).
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.small, t3.medium]
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Default: Z02101901H58WZ0VD505N
+  DomainName:
+    Type: String
+    Default: optimize.projectlunar.ai
+  AppSecretName:
+    Type: String
+    Default: lunar-optimize/app
+    Description: Secrets Manager secret (JSON, key per environment variable) read at boot.
+  SourceRef:
+    Type: String
+    Default: lunar-optimize-seo-engine
+    Description: open-seo CodeCommit branch to build.
+  DataVolumeSizeGb:
+    Type: Number
+    Default: 30
+
+Resources:
+  HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lunar Optimize host; HTTP and HTTPS only (no SSH)
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+      Tags:
+        - { Key: Name, Value: lunar-optimize-host-sg }
+        - { Key: Product, Value: lunar-optimize }
+
+  HostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LunarOptimizeHostRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: LunarOptimizeHostAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: codecommit:GitPull
+                Resource: !Sub arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:open-seo
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AppSecretName}-*
+      Tags:
+        - { Key: Product, Value: lunar-optimize }
+
+  HostProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref HostRole]
+
+  Host:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref HostSecurityGroup]
+      IamInstanceProfile: !Ref HostProfile
+      MetadataOptions: { HttpEndpoint: enabled, HttpTokens: required, HttpPutResponseHopLimit: 2 }
+      CreditSpecification: { CPUCredits: standard }
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeType: gp3, VolumeSize: !Ref DataVolumeSizeGb, Encrypted: true, DeleteOnTermination: false }
+      Tags:
+        - { Key: Name, Value: lunar-optimize-host }
+        - { Key: Product, Value: lunar-optimize }
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Bootstrap only: install Docker, fetch this branch, then hand over to the repo's bootstrap script.
+          set -euo pipefail
+          apt-get update -y
+          apt-get install -y docker.io docker-compose-v2 git awscli
+          systemctl enable --now docker
+          git config --system credential.helper '!aws codecommit credential-helper $@'
+          git config --system credential.UseHttpPath true
+          git clone --depth 1 --branch ${SourceRef} https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/open-seo /opt/lunar-optimize/src
+          export LO_DOMAIN=${DomainName} LO_SECRET=${AppSecretName} LO_REGION=${AWS::Region}
+          bash /opt/lunar-optimize/src/infra/aws/lunar-optimize/bootstrap.sh
+
+  HostAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref Host
+      Tags:
+        - { Key: Product, Value: lunar-optimize }
+
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      TTL: '300'
+      ResourceRecords: [!Ref HostAddress]
+
+Outputs:
+  InstanceId:
+    Value: !Ref Host
+  PublicAddress:
+    Value: !Ref HostAddress
+  Url:
+    Value: !Sub https://${DomainName}

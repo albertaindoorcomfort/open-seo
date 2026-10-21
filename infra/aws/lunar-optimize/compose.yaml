@@ -1,0 +1,32 @@
+# Lunar Optimize on its own host: Caddy terminates TLS for optimize.projectlunar.ai and proxies to the open-seo
+# self-host container. Data (the SQLite store, Durable Objects, R2 and KV emulation) lives in the open_seo_data
+# volume on the encrypted root disk; back it up with EBS snapshots.
+services:
+  open-seo:
+    image: lunar-optimize:current
+    restart: unless-stopped
+    env_file:
+      - /opt/lunar-optimize/app.env
+    expose:
+      - "3001"
+    volumes:
+      - open_seo_data:/app/.wrangler
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [open-seo]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - LO_DOMAIN=${LO_DOMAIN}
+    volumes:
+      - ./src/infra/aws/lunar-optimize/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  open_seo_data:
+  caddy_data:
+  caddy_config:
