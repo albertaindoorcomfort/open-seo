@@ -27,6 +27,13 @@ import { sweepDubReferredOrganizations } from "@/server/referrals/dub";
 import { maybeSendSelfHostHeartbeat } from "@/server/lib/self-host-telemetry";
 import { handleGdprStorageErasure } from "@/server/gdpr/storage-erasure";
 import { GDPR_STORAGE_ERASURE_PATH } from "@/shared/gdpr-erasure";
+import {
+  AIC_TOOLS_PREFIX,
+  handleAicToolRequest,
+  parseTenantLinks,
+} from "@/integrations/apollo/module-bridge";
+import { createOpenSeoTransport } from "@/integrations/apollo/client";
+import { getEnvValueSync } from "@/server/lib/runtime-env";
 
 const startHandler = createStartHandler(defaultStreamHandler);
 
@@ -151,6 +158,22 @@ function handleFetch(
 
   if (pathname.startsWith("/agents/")) {
     return routeChatAgents(publicRequest, env);
+  }
+
+  // Apollo's signed module calls. Each one is re-sent in-process to /mcp with
+  // the tenant's API key, so it passes the same auth and billing as any client.
+  if (pathname.startsWith(AIC_TOOLS_PREFIX)) {
+    return handleAicToolRequest(publicRequest, {
+      secret: getEnvValueSync(env, "AIC_MODULE_SECRET") ?? "",
+      tenants: parseTenantLinks(getEnvValueSync(env, "AIC_TENANT_LINKS")),
+      transport: (apiKey) =>
+        createOpenSeoTransport({
+          baseUrl: new URL(publicRequest.url).origin,
+          apiKey,
+          fetch: (input, init) =>
+            Promise.resolve(handleFetch(new Request(input, init), env, ctx)),
+        }),
+    });
   }
 
   if (isHostedAuthMode(authMode)) {
