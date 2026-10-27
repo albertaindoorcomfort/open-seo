@@ -24,8 +24,10 @@ import {
   sendHostedVerificationEmail,
   upsertHostedSignupContact,
 } from "@/server/email/loops";
-import { usesPlaceholderBilling } from "@/server/billing/autumn-placeholder";
-import { isEmailAllowed } from "@/server/auth/signup-allowlist";
+import {
+  isEmailAllowed,
+  isSignupInviteOnly,
+} from "@/server/auth/signup-allowlist";
 
 const hostedBaseUrlSchema = z
   .string()
@@ -138,8 +140,7 @@ function createAuth() {
             }
             // Invite-only while billing is the placeholder ledger.
             if (
-              isHostedAuthMode(env.AUTH_MODE) &&
-              (await usesPlaceholderBilling()) &&
+              (await isSignupInviteOnly()) &&
               !isEmailAllowed(
                 user.email,
                 Reflect.get(env, "LUNAR_OPTIMIZE_ALLOWED_EMAILS"),
@@ -297,7 +298,7 @@ export function hasGoogleSocialConfig() {
   );
 }
 
-function hasHostedAuthEmailConfig() {
+export function hasHostedAuthEmailConfig() {
   const loopsVars = [
     "LOOPS_API_KEY",
     "LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID",

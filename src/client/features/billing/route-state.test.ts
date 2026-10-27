@@ -2,46 +2,44 @@ import { describe, expect, it } from "vitest";
 import { getBillingRouteState, getSubscribeRouteState } from "./route-state";
 
 describe("getBillingRouteState", () => {
+  const base = {
+    hasSession: true,
+    isSessionPending: false,
+    billingMode: "autumn" as const,
+    isCustomerLoading: false,
+    isCustomerError: false,
+  };
+
   it("shows ready after successful customer lookup", () => {
-    expect(
-      getBillingRouteState({
-        hasSession: true,
-        isSessionPending: false,
-        isCustomerLoading: false,
-        isCustomerError: false,
-      }),
-    ).toBe("ready");
+    expect(getBillingRouteState(base)).toBe("ready");
   });
 
   it("shows an error state on billing lookup failures", () => {
+    expect(getBillingRouteState({ ...base, isCustomerError: true })).toBe(
+      "error",
+    );
+  });
+
+  it("shows the placeholder ledger instead of its failed customer lookup", () => {
     expect(
       getBillingRouteState({
-        hasSession: true,
-        isSessionPending: false,
-        isCustomerLoading: false,
+        ...base,
+        billingMode: "placeholder",
         isCustomerError: true,
       }),
-    ).toBe("error");
+    ).toBe("placeholder");
   });
 
   it("keeps the page blank while auth or billing data is still loading", () => {
-    expect(
-      getBillingRouteState({
-        hasSession: true,
-        isSessionPending: true,
-        isCustomerLoading: false,
-        isCustomerError: false,
-      }),
-    ).toBe("loading");
-
-    expect(
-      getBillingRouteState({
-        hasSession: true,
-        isSessionPending: false,
-        isCustomerLoading: true,
-        isCustomerError: false,
-      }),
-    ).toBe("loading");
+    expect(getBillingRouteState({ ...base, isSessionPending: true })).toBe(
+      "loading",
+    );
+    expect(getBillingRouteState({ ...base, billingMode: undefined })).toBe(
+      "loading",
+    );
+    expect(getBillingRouteState({ ...base, isCustomerLoading: true })).toBe(
+      "loading",
+    );
   });
 });
 
@@ -50,6 +48,8 @@ describe("getSubscribeRouteState", () => {
   // plan is the Autumn default and grants managed_service_access too.
   const base = {
     hasSession: true,
+    billingMode: "autumn" as const,
+    checkoutEnabled: true,
     isCustomerLoading: false,
     isCustomerError: false,
     hasManagedAccess: true,
@@ -65,8 +65,36 @@ describe("getSubscribeRouteState", () => {
     );
   });
 
+  it("shows the placeholder ledger before any error", () => {
+    expect(
+      getSubscribeRouteState({
+        ...base,
+        billingMode: "placeholder",
+        isCustomerError: true,
+      }),
+    ).toBe("placeholder");
+  });
+
+  it("says checkout is off before any error, and still lets paying customers in", () => {
+    // Regression: the error branch ran first, so a checkout that is off on
+    // purpose read as "Billing unavailable" with a dead Try again.
+    const checkoutOff = { ...base, checkoutEnabled: false };
+    expect(
+      getSubscribeRouteState({ ...checkoutOff, isCustomerError: true }),
+    ).toBe("checkoutDisabled");
+    expect(
+      getSubscribeRouteState({ ...checkoutOff, isUpgradeFlow: true }),
+    ).toBe("checkoutDisabled");
+    expect(getSubscribeRouteState({ ...checkoutOff, planStatus: "paid" })).toBe(
+      "redirectToApp",
+    );
+  });
+
   it("keeps the page blank while billing data is still loading", () => {
     expect(getSubscribeRouteState({ ...base, isCustomerLoading: true })).toBe(
+      "loading",
+    );
+    expect(getSubscribeRouteState({ ...base, billingMode: undefined })).toBe(
       "loading",
     );
   });

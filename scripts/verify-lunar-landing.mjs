@@ -15,7 +15,8 @@ try {
     const title = await page.title();
     const heading = await page.locator("h1").innerText();
     const signup = await page
-      .getByRole("link", { name: /create your workspace/i })
+      // "Create your account" while sign-up is invite-only.
+      .getByRole("link", { name: /create your (workspace|account)/i })
       .first()
       .getAttribute("href");
     const pricing = await page.locator(".lo-pricing").innerText();

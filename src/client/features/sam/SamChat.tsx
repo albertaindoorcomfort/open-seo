@@ -56,10 +56,17 @@ export function SamChat({
     goToSession(firstSessionId);
   }, [activeSessionId, firstSessionId, goToSession]);
 
-  // SAM cannot answer a turn without OPENROUTER_API_KEY, so surface setup
-  // instructions instead of letting a chat fail mid-stream. Only shown once the
-  // check confirms the key is missing (self-hosted) — never as a blocking
-  // skeleton while the check is in flight.
+  // SAM cannot answer a turn without OPENROUTER_API_KEY, so never offer a chat
+  // before the check confirms the key: wait for it, then show the gate when
+  // the key is missing. The sidebar runs the same cached check.
+  if (access.isChecking) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-base-content/40" />
+      </div>
+    );
+  }
+
   if (access.showSetupGate) {
     return (
       <div className="overflow-auto px-4 py-4 md:px-6 md:py-6">

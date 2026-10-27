@@ -10,6 +10,8 @@ import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { getSubscribeRouteState } from "@/client/features/billing/route-state";
 import { getCustomerPlanStatus } from "@/client/features/billing/plan-detection";
+import { PlaceholderBillingDetails } from "@/client/features/billing/PlaceholderBillingDetails";
+import { useBillingMode } from "@/client/features/billing/useBillingMode";
 import { normalizeAuthRedirect } from "@/lib/auth-redirect";
 import {
   AUTUMN_MANAGED_ACCESS_FEATURE_ID,
@@ -54,9 +56,10 @@ function SubscribePage() {
   const checkoutCompleted = checkout === "success";
 
   const hasSession = Boolean(session?.user?.id);
+  const { billingMode, placeholder } = useBillingMode(hasSession);
   const customerQuery = useCustomer({
     queryOptions: {
-      enabled: hasSession,
+      enabled: hasSession && billingMode === "autumn",
     },
   });
 
@@ -71,6 +74,9 @@ function SubscribePage() {
   const planStatus = getCustomerPlanStatus(customerQuery.data);
   const subscribeRouteState = getSubscribeRouteState({
     hasSession,
+    billingMode,
+    checkoutEnabled:
+      import.meta.env.VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED === "true",
     isCustomerLoading: customerQuery.isLoading,
     isCustomerError: customerQuery.isError,
     hasManagedAccess,
@@ -126,6 +132,45 @@ function SubscribePage() {
     return null;
   }
 
+  if (subscribeRouteState === "placeholder" && placeholder) {
+    return (
+      <div className="w-full max-w-sm space-y-5">
+        <SubscribePageAccountMenu email={session?.user?.email} />
+        <div className="text-center space-y-3">
+          <LunarMark />
+          <h1 className="text-xl font-semibold">
+            Early access, free of charge
+          </h1>
+          <p className="text-sm text-base-content/60">
+            Paid plans are not on sale yet, so there is nothing to buy and
+            nobody is charged. Your workspace runs on a free daily allowance.
+          </p>
+        </div>
+        <PlaceholderBillingDetails summary={placeholder} />
+        <Link to="/workspace" className="btn btn-soft w-full">
+          Open workspace
+        </Link>
+      </div>
+    );
+  }
+
+  // The fork's upstream plan is not an approved Lunar Optimize offer.
+  // The Autumn attach route applies the same default-closed gate server-side.
+  if (subscribeRouteState === "checkoutDisabled") {
+    return (
+      <div className="w-full max-w-sm space-y-5 rounded-lg border border-base-300 bg-base-100 p-6 text-center">
+        <h1 className="text-xl font-semibold">Lunar Optimize subscriptions</h1>
+        <p className="text-sm text-base-content/70">
+          Enrollment is being configured. Your existing workspace and available
+          free-plan features remain accessible.
+        </p>
+        <Link to="/workspace" className="btn btn-soft w-full">
+          Open workspace
+        </Link>
+      </div>
+    );
+  }
+
   if (subscribeRouteState === "finalizing") {
     return (
       <div className="w-full max-w-xs space-y-4 text-center">
@@ -168,23 +213,6 @@ function SubscribePage() {
         >
           Try again
         </button>
-      </div>
-    );
-  }
-
-  // The fork's upstream plan is not an approved Lunar Optimize offer.
-  // The Autumn attach route applies the same default-closed gate server-side.
-  if (import.meta.env.VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED !== "true") {
-    return (
-      <div className="w-full max-w-sm space-y-5 rounded-lg border border-base-300 bg-base-100 p-6 text-center">
-        <h1 className="text-xl font-semibold">Lunar Optimize subscriptions</h1>
-        <p className="text-sm text-base-content/70">
-          Enrollment is being configured. Your existing workspace and available
-          free-plan features remain accessible.
-        </p>
-        <Link to="/workspace" className="btn btn-soft w-full">
-          Open workspace
-        </Link>
       </div>
     );
   }

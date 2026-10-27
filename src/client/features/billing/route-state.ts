@@ -1,12 +1,31 @@
 import type { PlanStatus } from "@/client/features/billing/plan-detection";
 
+// Which billing rail serves this deployment (getBillingMode). undefined while
+// the lookup is in flight.
+type BillingMode = "placeholder" | "autumn" | undefined;
+
 export function getBillingRouteState(args: {
   hasSession: boolean;
   isSessionPending: boolean;
+  billingMode: BillingMode;
   isCustomerLoading: boolean;
   isCustomerError: boolean;
 }) {
-  if (args.isSessionPending || !args.hasSession || args.isCustomerLoading) {
+  if (
+    args.isSessionPending ||
+    !args.hasSession ||
+    args.billingMode === undefined
+  ) {
+    return "loading" as const;
+  }
+
+  // The placeholder ledger has no Autumn customer, so its lookup can only
+  // fail: show the ledger's allowance instead of that error.
+  if (args.billingMode === "placeholder") {
+    return "placeholder" as const;
+  }
+
+  if (args.isCustomerLoading) {
     return "loading" as const;
   }
 
@@ -19,6 +38,8 @@ export function getBillingRouteState(args: {
 
 export function getSubscribeRouteState(args: {
   hasSession: boolean;
+  billingMode: BillingMode;
+  checkoutEnabled: boolean;
   isCustomerLoading: boolean;
   isCustomerError: boolean;
   hasManagedAccess: boolean;
@@ -27,7 +48,24 @@ export function getSubscribeRouteState(args: {
   checkoutCompleted: boolean;
   finalizingTimedOut: boolean;
 }) {
-  if (!args.hasSession || args.isCustomerLoading) {
+  if (!args.hasSession || args.billingMode === undefined) {
+    return "loading" as const;
+  }
+
+  if (args.billingMode === "placeholder") {
+    return "placeholder" as const;
+  }
+
+  // Checkout is off on purpose. This comes before every error branch: a
+  // failed billing lookup must not read as an error for a checkout nobody can
+  // use. Paying customers still go straight into the app.
+  if (!args.checkoutEnabled) {
+    return args.planStatus === "paid"
+      ? ("redirectToApp" as const)
+      : ("checkoutDisabled" as const);
+  }
+
+  if (args.isCustomerLoading) {
     return "loading" as const;
   }
 

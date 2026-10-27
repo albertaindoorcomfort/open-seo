@@ -5,10 +5,12 @@ import {
   AuthPageShell,
   authRedirectSearchSchema,
 } from "@/client/features/auth/AuthPage";
+import { useAuthOptions } from "@/client/features/auth/useAuthOptions";
 import { getFieldError, getFormError } from "@/client/lib/forms";
 import { authClient } from "@/lib/auth-client";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { getSignInSearch, normalizeAuthRedirect } from "@/lib/auth-redirect";
+import { SUPPORT_EMAIL } from "@/shared/support";
 import { z } from "zod";
 
 const forgotPasswordSchema = z.object({
@@ -24,6 +26,13 @@ function ForgotPasswordPage() {
   const search = Route.useSearch();
   const redirectTo = normalizeAuthRedirect(search.redirect);
   const isHostedMode = isHostedClientAuthMode();
+  const authOptions = useAuthOptions();
+  // No mail provider: a reset link can never arrive, so never claim one did.
+  // A failed lookup counts as no mail provider too.
+  const resetMailUnavailable =
+    isHostedMode &&
+    !authOptions.isPending &&
+    authOptions.data?.passwordResetEmail !== true;
 
   const form = useForm({
     defaultValues: {
@@ -62,6 +71,47 @@ function ForgotPasswordPage() {
     },
   });
 
+  const backToSignIn = (
+    <p className="text-sm">
+      <Link
+        to="/sign-in"
+        search={getSignInSearch(redirectTo)}
+        className="text-base-content/50 hover:text-base-content transition-colors"
+      >
+        Back to sign in
+      </Link>
+    </p>
+  );
+
+  if (resetMailUnavailable) {
+    return (
+      <AuthPageShell>
+        <AuthPageCard
+          title="Forgot password"
+          helperText="Reset links by email are not available yet."
+          footer={backToSignIn}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-base-content/70">
+              Email{" "}
+              <a className="link" href={`mailto:${SUPPORT_EMAIL}`}>
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              from the address you signed up with, and we will help you back
+              into your account.
+            </p>
+            <a
+              className="btn btn-soft w-full"
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Lunar Optimize password reset")}`}
+            >
+              Email support
+            </a>
+          </div>
+        </AuthPageCard>
+      </AuthPageShell>
+    );
+  }
+
   return (
     <AuthPageShell>
       <form.Subscribe
@@ -85,17 +135,7 @@ function ForgotPasswordPage() {
                     ? "Enter your email and we'll send you a password reset link."
                     : "Password reset isn't available right now."
               }
-              footer={
-                <p className="text-sm">
-                  <Link
-                    to="/sign-in"
-                    search={getSignInSearch(redirectTo)}
-                    className="text-base-content/50 hover:text-base-content transition-colors"
-                  >
-                    Back to sign in
-                  </Link>
-                </p>
-              }
+              footer={backToSignIn}
             >
               {isSuccess ? (
                 <div className="alert alert-success">
@@ -143,7 +183,9 @@ function ForgotPasswordPage() {
                   ) : null}
                   <button
                     className="btn btn-soft w-full"
-                    disabled={!isHostedMode || isSubmitting}
+                    disabled={
+                      !isHostedMode || isSubmitting || authOptions.isPending
+                    }
                   >
                     {isSubmitting ? "Sending reset link..." : "Send reset link"}
                   </button>

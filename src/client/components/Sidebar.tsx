@@ -17,6 +17,7 @@ import {
 } from "@/client/navigation/items";
 import { ProjectSwitcher } from "@/client/features/projects/ProjectSwitcher";
 import { SamSidebarPanel } from "@/client/features/sam/SamSidebarPanel";
+import { useSamAccess } from "@/client/features/sam/useSamAccess";
 import { ThemePreferenceMenuItems } from "@/client/components/ThemePreferenceMenuItems";
 import { closeDropdown } from "@/client/lib/dropdown";
 import { signOutAndRedirect, useSession } from "@/lib/auth-client";
@@ -84,6 +85,11 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const onSamRoute = location.pathname.includes("/sam");
+  // Hosted users only see the SAM chat once a model key is confirmed;
+  // self-hosters keep the tab so its setup steps stay reachable.
+  const samAccess = useSamAccess(projectId);
+  const showChat =
+    projectId !== null && (!isHostedClientAuthMode() || samAccess.available);
 
   // PostHog-style sidebar tabs: Browse shows the regular nav, Chat shows the
   // SAM chat history. The tab is view state (switching to Browse leaves the
@@ -147,7 +153,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
         />
       </div>
 
-      {projectId ? (
+      {showChat ? (
         // Same underline tab idiom as the in-page tab strips (e.g. Domain
         // Overview's Top Keywords / Top Pages).
         <div className="px-3 pb-1">
@@ -168,7 +174,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
         </div>
       ) : null}
 
-      {view === "chat" && projectId ? (
+      {view === "chat" && showChat && projectId ? (
         <SamSidebarPanel projectId={projectId} onNavigate={onNavigate} />
       ) : (
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">

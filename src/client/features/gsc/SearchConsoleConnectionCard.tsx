@@ -41,14 +41,15 @@ export function SearchConsoleConnectionCard({
   });
   const connection = connectionQuery.data;
   const connected = Boolean(connection?.connected);
-  const selfHostedNeedsSetup =
-    !hosted && connectionQuery.isSuccess && !connection?.googleOAuthConfigured;
+  // No Google client ids: hide the Connect button and say why.
+  const googleNotConfigured =
+    connectionQuery.isSuccess && !connection?.googleOAuthConfigured;
 
   const showPicker = picking || (connection?.currentUserHasGrant && !connected);
   const sitesQuery = useQuery({
     queryKey: ["gscSites", projectId],
     queryFn: () => listGscSites({ data: { projectId } }),
-    enabled: Boolean(showPicker && !selfHostedNeedsSetup),
+    enabled: Boolean(showPicker && !googleNotConfigured),
   });
   const accounts = React.useMemo(
     () => sitesQuery.data?.accounts ?? [],
@@ -145,8 +146,10 @@ export function SearchConsoleConnectionCard({
       status={
         connectionQuery.isLoading
           ? undefined
-          : selfHostedNeedsSetup
-            ? "setup_required"
+          : googleNotConfigured
+            ? hosted
+              ? "unavailable"
+              : "setup_required"
             : connected
               ? "connected"
               : "disconnected"
@@ -157,7 +160,7 @@ export function SearchConsoleConnectionCard({
           <span className="loading loading-spinner loading-sm" />
           Checking…
         </div>
-      ) : selfHostedNeedsSetup ? (
+      ) : googleNotConfigured ? (
         <SelfHostedSetupWarning />
       ) : connected && !picking ? (
         <ConnectedState

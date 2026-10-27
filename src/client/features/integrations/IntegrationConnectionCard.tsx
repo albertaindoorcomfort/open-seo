@@ -3,7 +3,9 @@ import type { ReactNode } from "react";
 type IntegrationConnectionStatus =
   | "connected"
   | "disconnected"
-  | "setup_required";
+  | "setup_required"
+  // Hosted without Google client ids: nothing the user can set up.
+  | "unavailable";
 
 /** Shared shell for first-party connection cards such as GSC and GA4. */
 export function IntegrationConnectionCard({
@@ -69,7 +71,9 @@ function ConnectionStatusPill({
         ? "Connected"
         : setupRequired
           ? "Setup required"
-          : "Not connected"}
+          : status === "unavailable"
+            ? "Not available yet"
+            : "Not connected"}
     </span>
   );
 }
