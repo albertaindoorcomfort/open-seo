@@ -1,3 +1,4 @@
+import { BRAND } from "@/shared/brand";
 import { AppError } from "@/server/lib/errors";
 
 const BLOCKED_HOSTS = new Set([
@@ -263,7 +264,7 @@ export async function resolveStartUrlRedirects(
       response = await fetch(current, {
         method: "HEAD",
         redirect: "manual",
-        headers: { "User-Agent": "OpenSEO-Audit/1.0" },
+        headers: { "User-Agent": BRAND.crawlerAgent },
         signal: AbortSignal.timeout(START_URL_PROBE_TIMEOUT_MS),
       });
     } catch {

@@ -12,6 +12,7 @@ import {
   updateProjectContextSchema,
   type ContextAuthor,
 } from "@/types/schemas/projectContext";
+import { BRAND } from "@/shared/brand";
 
 // Both tools return the whole context, so they share one output shape. Every
 // MCP client pays for these schemas on tools/list, so the rows stay loose
@@ -39,8 +40,7 @@ export const getProjectContextTool = {
   name: "get_project_context",
   config: {
     title: "Get project context",
-    description:
-      "Reads a project's shared memory: business overview, current goal, positioning, writing preferences, custom sections, competitors, key pages, and the recent research log. Uses no credits. Call this before SEO work to ground it in what the user already told OpenSEO, and check the research log before re-buying research. Sections listed as missing are the ones worth filling with update_project_context.",
+    description: `Reads a project's shared memory: business overview, current goal, positioning, writing preferences, custom sections, competitors, key pages, and the recent research log. Uses no credits. Call this before SEO work to ground it in what the user already told ${BRAND.name}, and check the research log before re-buying research. Sections listed as missing are the ones worth filling with update_project_context.`,
     inputSchema: getInputSchema,
     outputSchema: contextOutputSchema,
     annotations: {

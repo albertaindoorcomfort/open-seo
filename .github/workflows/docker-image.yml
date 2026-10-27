@@ -14,7 +14,9 @@ permissions:
 
 jobs:
   docker:
-    if: github.repository == 'every-app/open-seo'
+    # The upstream repo and the Alberta Indoor Comfort fork each publish to
+    # their own ghcr.io namespace.
+    if: github.repository == 'every-app/open-seo' || github.repository == 'albertaindoorcomfort/open-seo'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,7 +39,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/every-app/open-seo
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag

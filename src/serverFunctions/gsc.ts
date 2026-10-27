@@ -51,7 +51,7 @@ export const getGscConnection = createServerFn({ method: "POST" })
       connected: Boolean(connection),
       canManage: hasOrgPermission(context.role, { integration: ["manage"] }),
       currentUserHasGrant,
-      googleOAuthConfigured: hosted || gscConfigured,
+      googleOAuthConfigured: currentUserHasGrant || hosted || gscConfigured,
       siteUrl: connection?.siteUrl ?? null,
       connectedByEmail: connection?.connectedAccountEmail ?? null,
       connectedAt: connection?.createdAt ?? null,

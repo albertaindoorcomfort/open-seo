@@ -3,6 +3,7 @@ import {
   getContactNameParts,
   updateLoopsContact,
 } from "@/server/email/loops-client";
+import { BRAND } from "@/shared/brand";
 
 const LOOPS_TRANSACTIONAL_URL = "https://app.loops.so/api/v1/transactional";
 
@@ -122,7 +123,7 @@ export async function sendHostedVerificationEmail({
     email,
     transactionalId: config.verificationTemplateId,
     dataVariables: {
-      appName: "OpenSEO",
+      appName: BRAND.name,
       confirmationUrl,
     },
   });
@@ -150,7 +151,7 @@ export async function sendHostedInvitationEmail({
     email,
     transactionalId: templateId,
     dataVariables: {
-      appName: "OpenSEO",
+      appName: BRAND.name,
       inviteUrl,
       organizationName,
       inviterName,
@@ -172,7 +173,7 @@ export async function sendHostedPasswordResetEmail({
     email,
     transactionalId: config.passwordResetTemplateId,
     dataVariables: {
-      appName: "OpenSEO",
+      appName: BRAND.name,
       resetUrl,
     },
   });

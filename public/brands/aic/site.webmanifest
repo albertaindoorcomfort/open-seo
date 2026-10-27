@@ -1,0 +1,19 @@
+{
+  "name": "AIC SEO",
+  "short_name": "AIC SEO",
+  "icons": [
+    {
+      "src": "/brands/aic/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/brands/aic/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#1b365d",
+  "background_color": "#f5efe6",
+  "display": "standalone"
+}

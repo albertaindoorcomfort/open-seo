@@ -8,6 +8,12 @@ import {
   Ga4TokenError,
 } from "@/server/lib/ga4Errors";
 import { GA4_OAUTH_PROVIDER_ID } from "@/shared/ga4";
+import {
+  GA4_SERVICE_ACCOUNT_SCOPE,
+  getServiceAccountAccessToken,
+  isServiceAccountId,
+  SERVICE_ACCOUNT_PREFIX,
+} from "@/server/lib/googleServiceAccount";
 
 const GA4_ADMIN_API_BASE = "https://analyticsadmin.googleapis.com/v1beta";
 const GA4_ADMIN_ALPHA_API_BASE =
@@ -128,6 +134,16 @@ async function getGa4AccessToken(opts: {
   userId: string;
   ga4AccountId: string;
 }): Promise<string> {
+  if (isServiceAccountId(opts.ga4AccountId)) {
+    try {
+      return await getServiceAccountAccessToken(GA4_SERVICE_ACCOUNT_SCOPE);
+    } catch (error) {
+      throw new Ga4TokenError(
+        "Could not mint a Google Analytics access token for the service account.",
+        error,
+      );
+    }
+  }
   let result: { accessToken?: string } | undefined;
   try {
     result = await getAuth().api.getAccessToken({
@@ -207,6 +223,9 @@ export function createGa4AdminClient(opts: {
 
   return {
     async getUserInfoEmail(): Promise<string | null> {
+      if (isServiceAccountId(opts.ga4AccountId)) {
+        return opts.ga4AccountId.slice(SERVICE_ACCOUNT_PREFIX.length);
+      }
       const data = z
         .object({ email: z.string().email().optional() })
         .parse(await request(GOOGLE_USERINFO_URL));

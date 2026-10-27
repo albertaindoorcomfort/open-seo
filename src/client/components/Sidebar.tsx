@@ -27,6 +27,7 @@ import { closeDropdown } from "@/client/lib/dropdown";
 import { signOutAndRedirect, useSession } from "@/lib/auth-client";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { BILLING_ROUTE } from "@/shared/billing";
+import { BRAND } from "@/shared/brand";
 
 interface SidebarProps {
   projectId: string | null;
@@ -128,9 +129,12 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
         <Link
           to="/"
           onClick={onNavigate}
-          className="text-base font-semibold text-base-content"
+          className="flex items-center gap-2 text-base font-semibold text-base-content"
         >
-          OpenSEO
+          {BRAND.assetDir ? (
+            <img src={BRAND.logo} alt="" className="size-6 rounded" />
+          ) : null}
+          {BRAND.name}
         </Link>
         {onClose ? (
           <button

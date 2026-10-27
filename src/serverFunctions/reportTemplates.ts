@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ReportTemplateService } from "@/server/features/reports/services/ReportTemplateService";
 import { AppError } from "@/server/lib/errors";
 import { requireProjectContext } from "@/serverFunctions/middleware";
+import { BRAND } from "@/shared/brand";
 
 // Report templates for the app. The `projectId` field in each validator is what
 // triggers project authorization (ADR 0001); the service never authorizes.
@@ -43,7 +44,7 @@ export const saveReportTemplate = createServerFn({ method: "POST" })
           description: data.description,
           instructions: data.instructions,
           // The client label for a template made in the app, not through MCP.
-          createdBy: "OpenSEO app",
+          createdBy: `${BRAND.name} app`,
           createdByUserId: context.userId,
         });
       return { ok: true as const, templateId, created };

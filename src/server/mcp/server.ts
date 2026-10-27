@@ -86,6 +86,7 @@ import {
   listSiteAuditsTool,
 } from "@/server/mcp/tools/site-audit-cleanup-tools";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
+import { BRAND } from "@/shared/brand";
 
 type ToolSchema = z.ZodType | z.ZodRawShape;
 
@@ -148,19 +149,25 @@ function registerOpenSeoTool<Input extends ToolSchema>(
 export function createOpenSeoMcpServer(authProps: McpProps) {
   const server = new McpServer(
     {
-      name: "OpenSEO MCP",
-      title: "OpenSEO",
+      name: `${BRAND.name} MCP`,
+      title: BRAND.name,
       version: "0.0.12",
       description:
         "SEO research tools for AI agents: keyword research and metrics, SERP and local SERP results, domain and backlink analysis, rank tracking, and Google Search Console performance.",
-      websiteUrl: "https://openseo.so",
-      icons: [
-        {
-          src: "https://openseo.so/android-chrome-512x512.png",
-          mimeType: "image/png",
-          sizes: ["512x512"],
-        },
-      ],
+      websiteUrl: BRAND.websiteUrl,
+      // The upstream mark is hosted on its own site; tenant brands have no
+      // fixed public origin for theirs, so they ship without an icon.
+      ...(BRAND.showUpstreamPromotion
+        ? {
+            icons: [
+              {
+                src: "https://openseo.so/android-chrome-512x512.png",
+                mimeType: "image/png",
+                sizes: ["512x512"],
+              },
+            ],
+          }
+        : {}),
     },
     {
       // The tool list is fixed per request and no list_changed notification
@@ -168,8 +175,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
       // use it to decide whether to open a subscriptions/listen stream.
       // Without the pre-declaration, registerTool defaults it to true.
       capabilities: { tools: { listChanged: false } },
-      instructions:
-        "OpenSEO research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
+      instructions: `${BRAND.name} research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.`,
     },
   );
 

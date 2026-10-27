@@ -8,6 +8,7 @@ import {
 import { REPORT_IFRAME_SANDBOX } from "@/shared/report-sandbox";
 import { sharePath } from "@/shared/report-share";
 import { domainField } from "@/types/schemas/domain";
+import { BRAND, brandAsset } from "@/shared/brand";
 
 // The public face of a shared report, `/s/<token>`: a slim bar and the
 // document in the same sandboxed frame the in-app viewer uses. Rendered to a
@@ -81,6 +82,7 @@ document.getElementById("share").addEventListener("click",async function(){
 });`;
 
 function TryButton() {
+  if (!BRAND.showUpstreamPromotion) return null;
   return (
     <a
       className="btn primary"
@@ -88,7 +90,7 @@ function TryButton() {
       target="_blank"
       rel="noreferrer"
     >
-      Try OpenSEO
+      Try {BRAND.name}
     </a>
   );
 }
@@ -111,9 +113,9 @@ function Document({
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
         <meta name="robots" content="noindex, nofollow" />
-        <title>{`${title} · OpenSEO`}</title>
+        <title>{`${title} · ${BRAND.name}`}</title>
         {head}
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href={brandAsset("favicon.ico")} />
         <style dangerouslySetInnerHTML={{ __html: STYLES }} />
       </head>
       <body>{children}</body>
@@ -195,7 +197,7 @@ export async function renderSharePage(
       head={
         <>
           <meta property="og:type" content="article" />
-          <meta property="og:site_name" content="OpenSEO" />
+          <meta property="og:site_name" content={BRAND.name} />
           <meta property="og:title" content={report.title} />
           <meta name="twitter:title" content={report.title} />
           {description ? (
@@ -208,11 +210,14 @@ export async function renderSharePage(
           <meta property="og:image" content={imageUrl} />
           <meta property="og:image:width" content="1200" />
           <meta property="og:image:height" content="630" />
-          <meta property="og:image:alt" content={`${report.title} · OpenSEO`} />
+          <meta
+            property="og:image:alt"
+            content={`${report.title} · ${BRAND.name}`}
+          />
           <meta name="twitter:image" content={imageUrl} />
           <meta
             name="twitter:image:alt"
-            content={`${report.title} · OpenSEO`}
+            content={`${report.title} · ${BRAND.name}`}
           />
           <meta name="twitter:card" content="summary_large_image" />
         </>
@@ -222,7 +227,8 @@ export async function renderSharePage(
         <div className="title">
           <h1>{report.title}</h1>
           <p className="meta">
-            Made with OpenSEO · Updated {formatRelativeTime(report.updatedAt)}
+            Made with {BRAND.name} · Updated{" "}
+            {formatRelativeTime(report.updatedAt)}
           </p>
         </div>
         <div className="actions">

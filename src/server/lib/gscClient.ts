@@ -1,5 +1,11 @@
 import { getAuth } from "@/lib/auth";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
+import {
+  GSC_SERVICE_ACCOUNT_SCOPE,
+  getServiceAccountAccessToken,
+  isServiceAccountId,
+  SERVICE_ACCOUNT_PREFIX,
+} from "./googleServiceAccount";
 import { GscApiError, GscTokenError } from "./gscErrors";
 
 export { GscApiError, GscTokenError } from "./gscErrors";
@@ -84,7 +90,19 @@ export function createGscClient(opts: {
   userId: string;
   gscAccountId?: string;
 }) {
+  const serviceAccount = isServiceAccountId(opts.gscAccountId);
+
   async function getToken(): Promise<string> {
+    if (serviceAccount) {
+      try {
+        return await getServiceAccountAccessToken(GSC_SERVICE_ACCOUNT_SCOPE);
+      } catch (error) {
+        throw new GscTokenError(
+          "Could not mint a Search Console access token for the service account.",
+          error,
+        );
+      }
+    }
     let result: { accessToken?: string } | undefined;
     try {
       // Headerless call: getAccessToken trusts body.userId when no request
@@ -139,6 +157,9 @@ export function createGscClient(opts: {
 
   return {
     async getUserInfoEmail(): Promise<string | null> {
+      if (serviceAccount && opts.gscAccountId) {
+        return opts.gscAccountId.slice(SERVICE_ACCOUNT_PREFIX.length);
+      }
       const data = await request<{ email?: unknown }>(GOOGLE_USERINFO_URL);
       return typeof data.email === "string" ? data.email : null;
     },

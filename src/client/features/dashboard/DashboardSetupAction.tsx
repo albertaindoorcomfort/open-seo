@@ -22,8 +22,9 @@ import { getProjects, setProjectWebsite } from "@/serverFunctions/projects";
 import { markDashboardCompetitorClicked } from "@/serverFunctions/dashboard";
 import type { DashboardSetupStep } from "@/types/schemas/dashboard";
 import { parseResearchTarget } from "@/shared/researchScope";
+import { BRAND } from "@/shared/brand";
 
-const projectPrompt = `Use OpenSEO to set up a separate project for each website below. List my existing projects first and reuse matches so you don’t create duplicates. Set the country and language for each site, and ask me about anything missing.
+const projectPrompt = `Use ${BRAND.name} to set up a separate project for each website below. List my existing projects first and reuse matches so you don’t create duplicates. Set the country and language for each site, and ask me about anything missing.
 
 Replace this list with my websites:
 - Project name — website — country — language`;

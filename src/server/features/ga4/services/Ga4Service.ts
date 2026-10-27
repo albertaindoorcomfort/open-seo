@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { account } from "@/db/schema";
 import { AppError } from "@/server/lib/errors";
+import { getServiceAccountGrantForUser } from "@/server/features/google/serviceAccountGrant";
 import { createGa4AdminClient } from "@/server/lib/ga4Client";
 import { Ga4AdminApiError, Ga4TokenError } from "@/server/lib/ga4Errors";
 import { GA4_OAUTH_PROVIDER_ID } from "@/shared/ga4";
@@ -9,21 +10,31 @@ import {
   Ga4ConnectionRepository,
   type Ga4Connection,
 } from "@/server/features/ga4/repositories/Ga4ConnectionRepository";
+import { BRAND } from "@/shared/brand";
 
 async function getConnection(projectId: string): Promise<Ga4Connection | null> {
   return Ga4ConnectionRepository.getByProjectId(projectId);
 }
 
 async function listGrantsForUser(userId: string) {
-  return db
-    .select({ id: account.id, accountId: account.accountId })
-    .from(account)
-    .where(
-      and(
-        eq(account.userId, userId),
-        eq(account.providerId, GA4_OAUTH_PROVIDER_ID),
+  const [oauthGrants, serviceAccount] = await Promise.all([
+    db
+      .select({ id: account.id, accountId: account.accountId })
+      .from(account)
+      .where(
+        and(
+          eq(account.userId, userId),
+          eq(account.providerId, GA4_OAUTH_PROVIDER_ID),
+        ),
       ),
-    );
+    getServiceAccountGrantForUser(userId),
+  ]);
+  return serviceAccount
+    ? [
+        ...oauthGrants,
+        { id: serviceAccount.id, accountId: serviceAccount.accountId },
+      ]
+    : oauthGrants;
 }
 
 async function userHasGrant(userId: string): Promise<boolean> {
@@ -94,7 +105,7 @@ async function setProperty(input: {
   if (!grants.some((grant) => grant.accountId === input.accountId)) {
     throw new AppError(
       "NOT_FOUND",
-      "That Google account isn't connected to your OpenSEO account.",
+      `That Google account isn't connected to your ${BRAND.name} account.`,
     );
   }
 

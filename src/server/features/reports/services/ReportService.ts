@@ -12,6 +12,7 @@ import {
   REPORT_MAX_TITLE_CHARS,
   type ReportMetadata,
 } from "@/types/schemas/reports";
+import { BRAND } from "@/shared/brand";
 
 // Reports: the HTML documents agents write for a project. Every caller (server
 // function, MCP tool, SAM) comes through here, so the caps and the refusal copy
@@ -253,7 +254,7 @@ async function shareReport(params: ShareParams): Promise<ReportMetadata> {
   if (!(await sharesEnabled())) {
     throw new AppError(
       "VALIDATION_ERROR",
-      "Sharing is only available on hosted OpenSEO.",
+      `Sharing is only available on hosted ${BRAND.name}.`,
     );
   }
 

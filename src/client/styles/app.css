@@ -90,6 +90,28 @@
   --noise: 0;
 }
 
+/* Tenant palettes. Selected by data-brand on <html> (VITE_BRAND); the
+   daisyUI theme names stay the same so light/dark selectors keep working. */
+html[data-brand="aic"][data-theme="openseo"] {
+  --color-base-200: #f5efe6;
+  --color-base-300: #e4dccd;
+  --color-base-content: #3a4051;
+  --color-primary: #1b365d;
+  --color-primary-content: #ffffff;
+  --color-accent: #e87722;
+  --color-accent-content: #ffffff;
+}
+html[data-brand="aic"][data-theme="openseo-dark"] {
+  --color-base-100: #16294a;
+  --color-base-200: #0f1f36;
+  --color-base-300: #1b365d;
+  --color-base-content: #f5efe6;
+  --color-primary: #fbb040;
+  --color-primary-content: #0f1f36;
+  --color-accent: #e87722;
+  --color-accent-content: #0f1f36;
+}
+
 html,
 body {
   @apply m-0 bg-base-200;

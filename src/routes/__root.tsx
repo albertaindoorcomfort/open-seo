@@ -28,6 +28,7 @@ import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { Toaster } from "sonner";
 import { queryClient } from "@/client/tanstack-db";
 import { getActiveOrganizationId } from "@/lib/auth-session";
+import { BRAND, brandAsset } from "@/shared/brand";
 
 // Capture Google link error params before the router starts — a route loader
 // redirect would otherwise replace the URL and lose them. See googleLinkError.ts.
@@ -37,7 +38,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       {
-        title: "OpenSEO",
+        title: BRAND.name,
       },
       {
         charSet: "utf-8",
@@ -69,22 +70,22 @@ export const Route = createRootRoute({
       {
         rel: "apple-touch-icon",
         sizes: "180x180",
-        href: "/apple-touch-icon.png",
+        href: brandAsset("apple-touch-icon.png"),
       },
       {
         rel: "icon",
         type: "image/png",
         sizes: "32x32",
-        href: "/favicon-32x32.png",
+        href: brandAsset("favicon-32x32.png"),
       },
       {
         rel: "icon",
         type: "image/png",
         sizes: "16x16",
-        href: "/favicon-16x16.png",
+        href: brandAsset("favicon-16x16.png"),
       },
-      { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
-      { rel: "manifest", href: "/site.webmanifest" },
+      { rel: "icon", type: "image/x-icon", href: brandAsset("favicon.ico") },
+      { rel: "manifest", href: brandAsset("site.webmanifest") },
     ],
     scripts: [],
   }),
@@ -131,7 +132,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     import.meta.env.DEV && import.meta.env.VITE_SHOW_DEVTOOLS !== "false";
 
   return (
-    <html suppressHydrationWarning translate="no">
+    <html suppressHydrationWarning translate="no" data-brand={BRAND.id}>
       <head>
         <script
           dangerouslySetInnerHTML={{ __html: themePreferenceInitScript }}
