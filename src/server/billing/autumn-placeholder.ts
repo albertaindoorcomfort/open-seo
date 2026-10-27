@@ -29,13 +29,14 @@ export async function usesPlaceholderBilling(): Promise<boolean> {
 }
 
 export function placeholderDailyCredits(
-  raw: string | undefined = Reflect.get(env, "LUNAR_OPTIMIZE_DAILY_USD") as
-    | string
-    | undefined,
+  raw: unknown = Reflect.get(env, "LUNAR_OPTIMIZE_DAILY_USD"),
 ): number {
   const usd = Number(raw);
   const daily =
-    raw != null && raw.trim() !== "" && Number.isFinite(usd) && usd >= 0
+    typeof raw === "string" &&
+    raw.trim() !== "" &&
+    Number.isFinite(usd) &&
+    usd >= 0
       ? usd
       : DEFAULT_DAILY_USD;
   return Math.round(daily * AUTUMN_SEO_DATA_CREDITS_PER_USD);

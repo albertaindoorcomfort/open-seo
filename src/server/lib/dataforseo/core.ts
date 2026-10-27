@@ -8,6 +8,7 @@ import {
   OnPageApi,
   SerpApi,
 } from "dataforseo-client";
+import { z } from "zod";
 import { AppError } from "@/server/lib/errors";
 import {
   markDataforseoLive,
@@ -57,11 +58,17 @@ function formatDataforseoErrorPayload(value: unknown): string {
     : text;
 }
 
+const taskStatusBodySchema = z.object({
+  tasks: z.array(z.object({ status_code: z.number().optional() })).optional(),
+});
+
 /** Task-level status code of a DataForSEO body (HTTP 200 can still carry a refused task). */
-async function firstTaskStatus(response: Response): Promise<number | undefined> {
+async function firstTaskStatus(
+  response: Response,
+): Promise<number | undefined> {
   try {
-    const body = (await response.clone().json()) as { tasks?: Array<{ status_code?: number }> };
-    return body.tasks?.[0]?.status_code;
+    const body = taskStatusBodySchema.safeParse(await response.clone().json());
+    return body.success ? body.data.tasks?.[0]?.status_code : undefined;
   } catch {
     return undefined;
   }
@@ -90,12 +97,22 @@ function createAuthenticatedFetch(
     const rawUrl = typeof url === "string" ? url : url.url;
     // Lunar Optimize: no key, or a refusal for auth, credits or quota, answers
     // with labelled sample data (sample.ts) so every screen keeps working.
-    const sample = (reason: Parameters<typeof setDataforseoSampleReason>[0]) => {
+    const sample = (
+      reason: Parameters<typeof setDataforseoSampleReason>[0],
+    ) => {
       setDataforseoSampleReason(reason);
-      return new Response(JSON.stringify(sampleDataforseoBody(rawUrl, parseRequestBody(init?.body))), {
-        status: 200,
-        headers: { "content-type": "application/json", "x-lunar-sample": reason },
-      });
+      return new Response(
+        JSON.stringify(
+          sampleDataforseoBody(rawUrl, parseRequestBody(init?.body)),
+        ),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "x-lunar-sample": reason,
+          },
+        },
+      );
     };
     const apiKey = await readDataforseoKey();
     if (apiKey === null) return sample("no_key");

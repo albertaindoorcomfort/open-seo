@@ -142,9 +142,7 @@ function createAuth() {
               (await usesPlaceholderBilling()) &&
               !isEmailAllowed(
                 user.email,
-                Reflect.get(env, "LUNAR_OPTIMIZE_ALLOWED_EMAILS") as
-                  | string
-                  | undefined,
+                Reflect.get(env, "LUNAR_OPTIMIZE_ALLOWED_EMAILS"),
               )
             ) {
               throw new APIError("FORBIDDEN", {

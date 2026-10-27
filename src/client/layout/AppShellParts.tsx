@@ -26,12 +26,21 @@ function SeoApiStatusBanners({
       {sampleReason ? (
         <div className="shrink-0 px-4 py-2 md:px-6">
           <div className="mx-auto max-w-7xl">
-            <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-warning px-3 py-2 text-sm">
-              <span className="badge badge-warning badge-outline font-semibold">Sample data</span>
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-warning px-3 py-2 text-sm"
+            >
+              <span className="badge badge-warning badge-outline font-semibold">
+                Sample data
+              </span>
               <span className="text-base-content/80">
-                {SAMPLE_TEXT[sampleReason] ?? "DataForSEO is not answering"}, so keyword, results, rank and backlink
-                numbers are samples. Add DATAFORSEO_API_KEY or top up credits for live data (
-                <Link {...dataforseoHelpLinkOptions} className="link link-primary font-medium">
+                {SAMPLE_TEXT[sampleReason] ?? "DataForSEO is not answering"}, so
+                keyword, results, rank and backlink numbers are samples. Add
+                DATAFORSEO_API_KEY or top up credits for live data (
+                <Link
+                  {...dataforseoHelpLinkOptions}
+                  className="link link-primary font-medium"
+                >
                   setup steps
                 </Link>
                 ).
@@ -90,6 +99,5 @@ function MobileSidebarDrawer({
     </div>
   );
 }
-
 
 export { MobileSidebarDrawer, SeoApiStatusBanners };

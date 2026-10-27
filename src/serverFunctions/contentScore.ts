@@ -10,7 +10,9 @@ const buildReferenceSchema = z.object({
   keyword: z.string().trim().min(2).max(80),
   urls: z.array(z.string().url().max(2000)).max(5).default([]),
   texts: z
-    .array(z.object({ title: z.string().max(240), text: z.string().max(20_000) }))
+    .array(
+      z.object({ title: z.string().max(240), text: z.string().max(20_000) }),
+    )
     .max(5)
     .default([]),
 });

@@ -22,7 +22,7 @@ const MAX_BYTES = 2_000_000;
 const TIMEOUT_MS = 12_000;
 const USER_AGENT = "LunarOptimize-ContentScore/1.0";
 
-export type PageAttempt = { url: string; ok: boolean; error?: string };
+type PageAttempt = { url: string; ok: boolean; error?: string };
 
 async function readCapped(response: Response): Promise<string | null> {
   const reader = response.body?.getReader();
@@ -43,7 +43,12 @@ async function readCapped(response: Response): Promise<string | null> {
   return text + decoder.decode();
 }
 
-async function fetchPage(rawUrl: string): Promise<{ ok: true; url: string; html: boolean; body: string } | { ok: false; error: string }> {
+async function fetchPage(
+  rawUrl: string,
+): Promise<
+  | { ok: true; url: string; html: boolean; body: string }
+  | { ok: false; error: string }
+> {
   let current: string;
   try {
     current = await normalizeAndValidateStartUrl(rawUrl);
@@ -54,7 +59,10 @@ async function fetchPage(rawUrl: string): Promise<{ ok: true; url: string; html:
     let response: Response;
     try {
       response = await fetch(current, {
-        headers: { "user-agent": USER_AGENT, accept: "text/html,text/plain;q=0.9" },
+        headers: {
+          "user-agent": USER_AGENT,
+          accept: "text/html,text/plain;q=0.9",
+        },
         redirect: "manual",
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
@@ -63,19 +71,31 @@ async function fetchPage(rawUrl: string): Promise<{ ok: true; url: string; html:
     }
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
-      if (!location) return { ok: false, error: "The page redirected without a destination." };
+      if (!location)
+        return {
+          ok: false,
+          error: "The page redirected without a destination.",
+        };
       try {
-        current = await normalizeAndValidateStartUrl(new URL(location, current).toString());
+        current = await normalizeAndValidateStartUrl(
+          new URL(location, current).toString(),
+        );
       } catch {
-        return { ok: false, error: "The page redirected to an address that cannot be fetched." };
+        return {
+          ok: false,
+          error: "The page redirected to an address that cannot be fetched.",
+        };
       }
       continue;
     }
-    if (!response.ok) return { ok: false, error: `The page answered ${response.status}.` };
+    if (!response.ok)
+      return { ok: false, error: `The page answered ${response.status}.` };
     const type = (response.headers.get("content-type") ?? "").toLowerCase();
-    if (!type.startsWith("text/html") && !type.startsWith("text/plain")) return { ok: false, error: "Only web pages can be measured." };
+    if (!type.startsWith("text/html") && !type.startsWith("text/plain"))
+      return { ok: false, error: "Only web pages can be measured." };
     const body = await readCapped(response);
-    if (body === null) return { ok: false, error: "The page is larger than 2 MB." };
+    if (body === null)
+      return { ok: false, error: "The page is larger than 2 MB." };
     return { ok: true, url: current, html: type.startsWith("text/html"), body };
   }
   return { ok: false, error: "The page redirected too many times." };
@@ -87,7 +107,9 @@ export async function buildContentReferenceFromPages(input: {
   urls: string[];
   texts?: Array<{ title: string; text: string }>;
 }): Promise<{ reference: ContentReference; attempts: PageAttempt[] }> {
-  const urls = [...new Set(input.urls.map((u) => u.trim()).filter(Boolean))].slice(0, 5);
+  const urls = [
+    ...new Set(input.urls.map((u) => u.trim()).filter(Boolean)),
+  ].slice(0, 5);
   const attempts: PageAttempt[] = [];
   const pages: ReferencePage[] = [];
   const results = await Promise.all(urls.map((u) => fetchPage(u)));
@@ -97,9 +119,15 @@ export async function buildContentReferenceFromPages(input: {
       attempts.push({ url, ok: false, error: r.error });
       return;
     }
-    const doc = r.html ? parseHtmlPage(r.body) : parsePlainText(new URL(r.url).hostname, r.body);
+    const doc = r.html
+      ? parseHtmlPage(r.body)
+      : parsePlainText(new URL(r.url).hostname, r.body);
     if (doc.word_count < 50) {
-      attempts.push({ url, ok: false, error: "The page has too little readable text." });
+      attempts.push({
+        url,
+        ok: false,
+        error: "The page has too little readable text.",
+      });
       return;
     }
     pages.push(profilePage(r.url, doc, "provided"));
@@ -107,7 +135,11 @@ export async function buildContentReferenceFromPages(input: {
   });
   for (const t of (input.texts ?? []).slice(0, 5)) {
     const doc = parsePlainText(t.title, t.text);
-    if (doc.word_count >= 50) pages.push(profilePage(`text:${t.title.slice(0, 60)}`, doc, "source"));
+    if (doc.word_count >= 50)
+      pages.push(profilePage(`text:${t.title.slice(0, 60)}`, doc, "source"));
   }
-  return { reference: buildReference(input.keyword.trim().toLowerCase(), pages), attempts };
+  return {
+    reference: buildReference(input.keyword.trim().toLowerCase(), pages),
+    attempts,
+  };
 }

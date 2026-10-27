@@ -5,9 +5,9 @@
 
 const DEFAULT_ALLOWED_EMAILS = "DigitalTools.Mgt@albertaindoorcomfort.com";
 
-export function parseAllowedEmails(raw: string | undefined): Set<string> {
+export function parseAllowedEmails(raw: unknown): Set<string> {
   const source =
-    raw != null && raw.trim() !== "" ? raw : DEFAULT_ALLOWED_EMAILS;
+    typeof raw === "string" && raw.trim() !== "" ? raw : DEFAULT_ALLOWED_EMAILS;
   return new Set(
     source
       .split(/[\s,;]+/)
@@ -16,9 +16,6 @@ export function parseAllowedEmails(raw: string | undefined): Set<string> {
   );
 }
 
-export function isEmailAllowed(
-  email: string,
-  raw: string | undefined,
-): boolean {
+export function isEmailAllowed(email: string, raw: unknown): boolean {
   return parseAllowedEmails(raw).has(email.trim().toLowerCase());
 }

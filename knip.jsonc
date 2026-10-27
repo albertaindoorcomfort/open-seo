@@ -35,12 +35,14 @@
     "!.alchemy/**",
     "!badseo/**",
   ],
-  "ignore": ["drizzle-prod.config.ts"],
+  "ignore": [
+    "drizzle-prod.config.ts",
+    // Vendored SEO engine owned by Mission Control (D7); kept byte-identical,
+    // so its spare exports are not ours to prune.
+    "src/lib/seo-engine/**",
+  ],
+  // Static script served to third-party sites, never imported by the app.
+  "ignoreFiles": ["public/widget.js"],
   // Disable Drizzle plugin - it tries to load drizzle.config.ts which imports cloudflare:workers
   "drizzle": false,
-  "ignoreDependencies": [
-    // Tailwindcss used via @tailwindcss/vite plugin
-    "tailwindcss",
-    "daisyui",
-  ],
 }

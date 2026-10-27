@@ -29,7 +29,12 @@ async function handleDomainScanRequest(request: Request) {
 
   if (!rawDomain) {
     return jsonResponse(
-      { error: { code: "VALIDATION_ERROR", message: "domain query parameter is required." } },
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "domain query parameter is required.",
+        },
+      },
       400,
     );
   }
@@ -39,14 +44,21 @@ async function handleDomainScanRequest(request: Request) {
     domain = normalizeDomainInput(rawDomain, false);
   } catch {
     return jsonResponse(
-      { error: { code: "VALIDATION_ERROR", message: "Enter a valid registrable domain such as example.com." } },
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Enter a valid registrable domain such as example.com.",
+        },
+      },
       400,
     );
   }
 
   try {
     const search = await productionSearchGateway({ domain, request });
-    return jsonResponse(buildAuditResponse(domain, new Date().toISOString(), search));
+    return jsonResponse(
+      buildAuditResponse(domain, new Date().toISOString(), search),
+    );
   } catch (error) {
     if (error instanceof PublicWidgetAuditError) {
       const extra: HeadersInit = {};
@@ -60,7 +72,12 @@ async function handleDomainScanRequest(request: Request) {
       );
     }
     return jsonResponse(
-      { error: { code: "PROVIDER_UNAVAILABLE", message: "The scan provider is temporarily unavailable." } },
+      {
+        error: {
+          code: "PROVIDER_UNAVAILABLE",
+          message: "The scan provider is temporarily unavailable.",
+        },
+      },
       502,
     );
   }

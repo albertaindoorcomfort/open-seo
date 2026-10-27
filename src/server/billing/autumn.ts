@@ -39,35 +39,40 @@ function loadAutumn(): Promise<Autumn> {
   ));
 }
 
-/** Shape-preserving lazy facade over the SDK client: call sites keep the
- *  plain `autumn.check(...)` form. Covers only the methods we use — add a
- *  line here when adopting a new one. With no AUTUMN_SECRET_KEY every call
- *  goes to the local placeholder ledger instead (autumn-placeholder.ts). */
+// The parts of Autumn's answers the app reads (track() results are unused).
+// The SDK's responses and the placeholder ledger's both satisfy these, so
+// neither path needs a cast.
+type AutumnBalance = { remaining: number };
+type AutumnCheckResult = {
+  allowed: boolean;
+  balance?: AutumnBalance | null;
+};
+type AutumnCustomerResult = {
+  id: string | null;
+  balances: Record<string, AutumnBalance | undefined>;
+};
+
+/** Lazy facade over the SDK client: call sites keep the plain
+ *  `autumn.check(...)` form. Covers only the methods we use — add a line
+ *  here when adopting a new one. With no AUTUMN_SECRET_KEY every call goes
+ *  to the local placeholder ledger instead (autumn-placeholder.ts). */
 export const autumn = {
   check: async (
     ...args: Parameters<Autumn["check"]>
-  ): ReturnType<Autumn["check"]> =>
+  ): Promise<AutumnCheckResult> =>
     (await usesPlaceholderBilling())
-      ? (placeholderAutumn.check(args[0]) as unknown as ReturnType<
-          Autumn["check"]
-        >)
+      ? placeholderAutumn.check(args[0])
       : loadAutumn().then((client) => client.check(...args)),
-  track: async (
-    ...args: Parameters<Autumn["track"]>
-  ): ReturnType<Autumn["track"]> =>
+  track: async (...args: Parameters<Autumn["track"]>): Promise<unknown> =>
     (await usesPlaceholderBilling())
-      ? (placeholderAutumn.track(args[0]) as unknown as ReturnType<
-          Autumn["track"]
-        >)
+      ? placeholderAutumn.track(args[0])
       : loadAutumn().then((client) => client.track(...args)),
   customers: {
     getOrCreate: async (
       ...args: Parameters<Autumn["customers"]["getOrCreate"]>
-    ): ReturnType<Autumn["customers"]["getOrCreate"]> =>
+    ): Promise<AutumnCustomerResult> =>
       (await usesPlaceholderBilling())
-        ? (placeholderAutumn.customers.getOrCreate(
-            args[0],
-          ) as unknown as ReturnType<Autumn["customers"]["getOrCreate"]>)
+        ? placeholderAutumn.customers.getOrCreate(args[0])
         : loadAutumn().then((client) => client.customers.getOrCreate(...args)),
   },
 };

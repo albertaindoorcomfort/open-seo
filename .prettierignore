@@ -17,3 +17,8 @@ drizzle-pg/
 planning/
 worker-configuration.d.ts
 web/
+
+# vendored SEO engine owned by Mission Control (D7): keep it byte-identical
+src/lib/seo-engine/
+# infra/aws is hands-off in this stream (undeployed stack): do not reformat it
+infra/aws/
