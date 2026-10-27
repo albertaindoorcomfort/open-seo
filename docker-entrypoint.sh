@@ -11,14 +11,14 @@ cd "$(dirname "$0")"
 
 echo 'OpenSEO sends an anonymous usage heartbeat (counts only). Disable: OPENSEO_TELEMETRY_DISABLED=1. Details: docs/SELF_HOSTING_DOCKER.md#telemetry'
 
-# The preflight validates env first, so misconfiguration fails in seconds
-# with the exact fix.
-node dist/selfhost/preflight.mjs
-
 # vite inlined the build-time env (VITE_*, AUTH_MODE, ...) into the bundle when
 # the image was built. A container with different values would serve a bundle
 # that disagrees with its server, so stop and name the build args instead.
 node dist/selfhost/build-env.mjs check dist/.openseo-build-env
+
+# The preflight validates the runtime env, so misconfiguration fails in seconds
+# with the exact fix.
+node dist/selfhost/preflight.mjs
 
 WRANGLER="node --no-warnings --experimental-vm-modules node_modules/wrangler/wrangler-dist/cli.js"
 STATE="$PWD/.wrangler/state"
