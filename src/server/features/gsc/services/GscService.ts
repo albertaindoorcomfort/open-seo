@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { account } from "@/db/schema";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
 import { AppError } from "@/server/lib/errors";
+import { getServiceAccountGrantForUser } from "@/server/features/google/serviceAccountGrant";
 import {
   createGscClient,
   type GscSite,
@@ -54,6 +55,7 @@ async function getConnection(projectId: string): Promise<GscConnection | null> {
 /** Whether this user has linked a google-search-console grant (regardless of
  *  whether they've picked a property yet). Drives the connect-vs-pick UI. */
 async function userHasGrant(userId: string): Promise<boolean> {
+  if (await getServiceAccountGrantForUser(userId)) return true;
   const rows = await db
     .select({ id: account.id })
     .from(account)
@@ -68,15 +70,24 @@ async function userHasGrant(userId: string): Promise<boolean> {
 }
 
 async function listGrantsForUser(userId: string) {
-  return db
-    .select({ id: account.id, accountId: account.accountId })
-    .from(account)
-    .where(
-      and(
-        eq(account.userId, userId),
-        eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
+  const [oauthGrants, serviceAccount] = await Promise.all([
+    db
+      .select({ id: account.id, accountId: account.accountId })
+      .from(account)
+      .where(
+        and(
+          eq(account.userId, userId),
+          eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
+        ),
       ),
-    );
+    getServiceAccountGrantForUser(userId),
+  ]);
+  return serviceAccount
+    ? [
+        ...oauthGrants,
+        { id: serviceAccount.id, accountId: serviceAccount.accountId },
+      ]
+    : oauthGrants;
 }
 
 /** Expected ways a stored grant fails to reach Search Console: no token could be

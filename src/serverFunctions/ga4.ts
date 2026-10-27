@@ -46,7 +46,7 @@ export const getGa4Connection = createServerFn({ method: "POST" })
       connected: Boolean(connection),
       canManage: hasOrgPermission(context.role, { integration: ["manage"] }),
       currentUserHasGrant,
-      googleOAuthConfigured: hosted || ga4Configured,
+      googleOAuthConfigured: currentUserHasGrant || hosted || ga4Configured,
       propertyId: connection?.propertyId ?? null,
       propertyDisplayName: connection?.propertyDisplayName ?? null,
       propertyTimeZone: connection?.propertyTimeZone ?? null,

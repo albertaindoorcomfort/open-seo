@@ -34,6 +34,7 @@ import {
 } from "@/integrations/apollo/module-bridge";
 import { createOpenSeoTransport } from "@/integrations/apollo/client";
 import { getEnvValueSync } from "@/server/lib/runtime-env";
+import { HEALTH_PREFIX, handleHealthRequest } from "@/server/health";
 
 const startHandler = createStartHandler(defaultStreamHandler);
 
@@ -154,6 +155,10 @@ function handleFetch(
 
   if (pathname === GDPR_STORAGE_ERASURE_PATH) {
     return handleGdprStorageErasure(publicRequest, env);
+  }
+
+  if (pathname.startsWith(HEALTH_PREFIX)) {
+    return handleHealthRequest(publicRequest, env);
   }
 
   if (pathname.startsWith("/agents/")) {
