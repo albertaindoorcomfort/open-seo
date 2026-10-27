@@ -7,6 +7,8 @@ const STANDARD_MESSAGES: Record<ErrorCode, string> = {
     "Lunar Optimize auth is not configured. Follow the README setup steps for Cloudflare Access.",
   PAYMENT_REQUIRED:
     "An active hosted subscription is required before you can use Lunar Optimize.",
+  // Autumn billing. The placeholder ledger sends its own text instead (today's
+  // allowance resets at midnight UTC), as "INSUFFICIENT_CREDITS: detail".
   INSUFFICIENT_CREDITS:
     "You've run out of credits. Add more credits or upgrade your plan to continue.",
   FORBIDDEN: "You do not have access to this resource.",
@@ -32,9 +34,10 @@ const STANDARD_MESSAGES: Record<ErrorCode, string> = {
     "An unexpected error occurred. Please check server logs and try again.",
 };
 
-// Setup errors cross the wire as "CODE: detail" (see toClientError) so the
-// user sees the server's specific guidance while code-driven UI (error cards,
-// redirects) still keys off the code.
+// Setup errors and the placeholder ledger's out-of-allowance error cross the
+// wire as "CODE: detail" (see toClientError) so the user sees the server's
+// specific guidance while code-driven UI (error cards, redirects) still keys
+// off the code.
 function splitCodedMessage(
   message: string,
 ): { code: ErrorCode; detail: string } | null {

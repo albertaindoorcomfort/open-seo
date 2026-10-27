@@ -19,6 +19,11 @@ export const AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID = "topup_credits";
 export const AUTUMN_SEO_DATA_CREDITS_PER_USD = 1000;
 export const SEO_DATA_COST_MARKUP = 1.28;
 export const LOW_CREDITS_THRESHOLD_USD = 0.25;
+// What the placeholder ledger (no AUTUMN_SECRET_KEY) says once today's
+// allowance is spent. Nothing is for sale while it serves billing, so the
+// only honest next step is to wait for the UTC day to turn over.
+export const PLACEHOLDER_ALLOWANCE_USED_MESSAGE =
+  "You have used today's free allowance. It resets at midnight UTC.";
 
 export function roundUsdForBilling(value: number) {
   return Math.round(value * 100000) / 100000;

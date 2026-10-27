@@ -20,11 +20,17 @@ export function asAppError(error: unknown): AppError | null {
 }
 
 // Codes whose server-side message is safe and useful to show the user.
-// Setup errors only: their messages are static guidance ("TEAM_DOMAIN must be
-// a full https URL…") that self-hosters need to fix their deployment, and the
+// Setup errors: their messages are static guidance ("TEAM_DOMAIN must be a
+// full https URL…") that self-hosters need to fix their deployment, and the
 // alternative is a generic card that makes every misconfiguration look the
-// same. Everything else stays stripped to its bare code.
-const CLIENT_DETAIL_ERROR_CODES = new Set<ErrorCode>(["AUTH_CONFIG_MISSING"]);
+// same. INSUFFICIENT_CREDITS: only the placeholder ledger gives it a message
+// (its allowance resets at midnight UTC, there is nothing to buy); with Autumn
+// it is thrown bare and the client's top-up text applies. Everything else
+// stays stripped to its bare code.
+const CLIENT_DETAIL_ERROR_CODES = new Set<ErrorCode>([
+  "AUTH_CONFIG_MISSING",
+  "INSUFFICIENT_CREDITS",
+]);
 
 export function toClientError(error: unknown): Error {
   const appError = asAppError(error);

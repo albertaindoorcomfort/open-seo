@@ -33,6 +33,8 @@ import {
   checkUsageCreditsDepleted,
   trackUsageCreditSpend,
 } from "@/server/billing/subscription";
+import { isPlaceholderBillingActive } from "@/server/billing/autumn-placeholder";
+import { PLACEHOLDER_ALLOWANCE_USED_MESSAGE } from "@/shared/billing";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { getPublicOrigin } from "@/server/mcp/public-origin";
 import { MCP_SCOPE } from "@/lib/oauth-resource";
@@ -275,8 +277,12 @@ export class SamChatAgent extends Think {
           projectId: ctx.project.id,
         });
         if (depleted) {
+          // The placeholder ledger sells nothing: there is no top-up, only
+          // tomorrow's allowance.
           return this.refusalTurn(
-            "You're out of credits. Top up to keep using SAM.",
+            (await isPlaceholderBillingActive())
+              ? PLACEHOLDER_ALLOWANCE_USED_MESSAGE
+              : "You're out of credits. Top up to keep using SAM.",
           );
         }
         this.turnMonthlyRemaining = monthlyRemaining;

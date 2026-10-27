@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { useCustomer } from "autumn-js/react";
 import { useSession } from "@/lib/auth-client";
 import { getCustomerPlanStatus } from "@/client/features/billing/plan-detection";
+import { getPlaceholderAllowanceNotice } from "@/client/features/billing/placeholder-allowance";
+import { useBillingMode } from "@/client/features/billing/useBillingMode";
 import {
   AUTUMN_SEO_DATA_BALANCE_FEATURE_ID,
   AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
@@ -15,11 +17,28 @@ export function FreePlanBanner() {
   const checkoutEnabled =
     import.meta.env.VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED === "true";
   const { data: session } = useSession();
+  const hasSession = Boolean(session?.user?.id);
+  const { billingMode, placeholder } = useBillingMode(hasSession);
+  // The placeholder ledger has no Autumn customer (its proxy answers 503), so
+  // Autumn is only asked once it is known to serve billing.
   const customerQuery = useCustomer({
     queryOptions: {
-      enabled: Boolean(session?.user?.id),
+      enabled: hasSession && billingMode === "autumn",
     },
   });
+
+  if (placeholder) {
+    const notice = getPlaceholderAllowanceNotice(placeholder);
+    if (!notice) return null;
+    return (
+      <BannerShell variant={notice.variant}>
+        {notice.message}{" "}
+        <Link to={BILLING_ROUTE} className="link link-primary font-medium">
+          See your allowance
+        </Link>
+      </BannerShell>
+    );
+  }
 
   if (customerQuery.isLoading || !customerQuery.data) {
     return null;

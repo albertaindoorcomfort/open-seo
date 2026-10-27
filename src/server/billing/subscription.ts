@@ -6,11 +6,13 @@ import {
   AUTUMN_SEO_DATA_BALANCE_FEATURE_ID,
   AUTUMN_SEO_DATA_CREDITS_PER_USD,
   AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
+  PLACEHOLDER_ALLOWANCE_USED_MESSAGE,
   SEO_DATA_COST_MARKUP,
   roundUsdForBilling,
 } from "@/shared/billing";
 import type { CreditFeature } from "@/shared/billing-credit-features";
 import { autumn, AUTUMN_TRACK_RETRY_OPTIONS } from "@/server/billing/autumn";
+import { isPlaceholderBillingActive } from "@/server/billing/autumn-placeholder";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { AppError } from "@/server/lib/errors";
 
@@ -205,6 +207,8 @@ export async function checkUsageCreditsDepleted(
 /**
  * Throws INSUFFICIENT_CREDITS when the org has no usage/topup credits left.
  * Returns the monthly remaining so a caller can split spend monthly-first.
+ * On the placeholder ledger the error carries the reset-at-midnight text,
+ * which toClientError passes on; with Autumn it stays the bare code.
  */
 export async function assertUsageCreditsAvailable(
   customerId: string,
@@ -213,7 +217,12 @@ export async function assertUsageCreditsAvailable(
     await getUsageCreditsRemaining(customerId);
 
   if (monthlyRemaining + topupRemaining <= 0) {
-    throw new AppError("INSUFFICIENT_CREDITS");
+    throw new AppError(
+      "INSUFFICIENT_CREDITS",
+      (await isPlaceholderBillingActive())
+        ? PLACEHOLDER_ALLOWANCE_USED_MESSAGE
+        : undefined,
+    );
   }
 
   return { monthlyRemaining };

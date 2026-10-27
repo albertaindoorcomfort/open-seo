@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AppError, toClientError } from "@/server/lib/errors";
+import { PLACEHOLDER_ALLOWANCE_USED_MESSAGE } from "@/shared/billing";
 
 describe("toClientError", () => {
   it("sanitizes detailed internal error messages", () => {
@@ -29,6 +30,20 @@ describe("toClientError", () => {
 
     expect(error.message).toBe(
       "AUTH_CONFIG_MISSING: TEAM_DOMAIN must be a full https URL like https://your-team.cloudflareaccess.com",
+    );
+  });
+
+  it("passes the placeholder allowance text on, and keeps Autumn's bare code", () => {
+    expect(
+      toClientError(
+        new AppError(
+          "INSUFFICIENT_CREDITS",
+          PLACEHOLDER_ALLOWANCE_USED_MESSAGE,
+        ),
+      ).message,
+    ).toBe(`INSUFFICIENT_CREDITS: ${PLACEHOLDER_ALLOWANCE_USED_MESSAGE}`);
+    expect(toClientError(new AppError("INSUFFICIENT_CREDITS")).message).toBe(
+      "INSUFFICIENT_CREDITS",
     );
   });
 
