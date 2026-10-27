@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   createRootRoute,
+  useRouter,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
@@ -124,11 +125,16 @@ function PostHogBootstrap() {
 function RootDocument({ children }: { children: React.ReactNode }) {
   const showDevtools =
     import.meta.env.DEV && import.meta.env.VITE_SHOW_DEVTOOLS !== "false";
+  // The response's CSP nonce (router.tsx); the policy blocks this inline
+  // script without it.
+  const nonce = useRouter().options.ssr?.nonce;
 
   return (
     <html suppressHydrationWarning translate="no">
       <head>
         <script
+          nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: themePreferenceInitScript }}
         />
         <HeadContent />

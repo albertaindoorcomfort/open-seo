@@ -1,4 +1,7 @@
 # Lunar Optimize. Its own site file; certbot adds the 443 server and the redirect to this file only.
+# Content-Security-Policy comes from the app, not from here: it carries a fresh script nonce per
+# response (src/server/lib/contentSecurityPolicy.ts). Do not add one here; a second policy would
+# intersect with it and block the app's inline scripts.
 server {
     server_name optimize.projectlunar.ai;
 

@@ -30,7 +30,6 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppProjectsRouteImport } from './routes/_app/projects'
 import { Route as AppBillingRouteImport } from './routes/_app/billing'
 import { Route as AppAiRouteImport } from './routes/_app/ai'
-import { Route as Char91DotwellKnownChar93OpenaiAppsChallengeRouteImport } from './routes/[.well-known]/openai-apps-challenge'
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated.onboarding.index'
 import { Route as ApiWidgetDomainScanRouteImport } from './routes/api/widget/domain-scan'
 import { Route as ApiWidgetAuditRouteImport } from './routes/api/widget/audit'
@@ -165,12 +164,6 @@ const AppAiRoute = AppAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => AppRouteRoute,
 } as any)
-const Char91DotwellKnownChar93OpenaiAppsChallengeRoute =
-  Char91DotwellKnownChar93OpenaiAppsChallengeRouteImport.update({
-    id: '/.well-known/openai-apps-challenge',
-    path: '/.well-known/openai-apps-challenge',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AuthenticatedOnboardingIndexRoute =
   AuthenticatedOnboardingIndexRouteImport.update({
     id: '/onboarding/',
@@ -350,7 +343,6 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/welcome': typeof WelcomeRoute
-  '/.well-known/openai-apps-challenge': typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   '/ai': typeof AppAiRoute
   '/billing': typeof AppBillingRoute
   '/projects': typeof AppProjectsRoute
@@ -401,7 +393,6 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/welcome': typeof WelcomeRoute
-  '/.well-known/openai-apps-challenge': typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   '/ai': typeof AppAiRoute
   '/billing': typeof AppBillingRoute
   '/projects': typeof AppProjectsRoute
@@ -453,7 +444,6 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/welcome': typeof WelcomeRoute
-  '/.well-known/openai-apps-challenge': typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   '/_app/ai': typeof AppAiRoute
   '/_app/billing': typeof AppBillingRoute
   '/_app/projects': typeof AppProjectsRoute
@@ -506,7 +496,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/welcome'
-    | '/.well-known/openai-apps-challenge'
     | '/ai'
     | '/billing'
     | '/projects'
@@ -557,7 +546,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/welcome'
-    | '/.well-known/openai-apps-challenge'
     | '/ai'
     | '/billing'
     | '/projects'
@@ -608,7 +596,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/welcome'
-    | '/.well-known/openai-apps-challenge'
     | '/_app/ai'
     | '/_app/billing'
     | '/_app/projects'
@@ -664,7 +651,6 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   WelcomeRoute: typeof WelcomeRoute
-  Char91DotwellKnownChar93OpenaiAppsChallengeRoute: typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   ApiAuthOptionsRoute: typeof ApiAuthOptionsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -823,13 +809,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/ai'
       preLoaderRoute: typeof AppAiRouteImport
       parentRoute: typeof AppRouteRoute
-    }
-    '/.well-known/openai-apps-challenge': {
-      id: '/.well-known/openai-apps-challenge'
-      path: '/.well-known/openai-apps-challenge'
-      fullPath: '/.well-known/openai-apps-challenge'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OpenaiAppsChallengeRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/onboarding/': {
       id: '/_authenticated/onboarding/'
@@ -1224,8 +1203,6 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   WelcomeRoute: WelcomeRoute,
-  Char91DotwellKnownChar93OpenaiAppsChallengeRoute:
-    Char91DotwellKnownChar93OpenaiAppsChallengeRoute,
   ApiAuthOptionsRoute: ApiAuthOptionsRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
