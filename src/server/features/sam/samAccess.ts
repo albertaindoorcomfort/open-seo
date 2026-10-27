@@ -26,3 +26,13 @@ export async function getSamAccessStatus(): Promise<SamAccessStatus> {
       : OPENROUTER_KEY_MISSING_MESSAGE,
   };
 }
+
+/** The Worker's gate for the SAM and onboarding chat sockets (src/server.ts):
+ *  a 403 while no model can answer, so hiding the chat in the UI is not the
+ *  only thing standing between a user and turns that can only fail. */
+export async function refuseChatWhenSamUnavailable(): Promise<
+  Response | undefined
+> {
+  if ((await getSamAccessStatus()).enabled) return undefined;
+  return new Response("Forbidden", { status: 403 });
+}

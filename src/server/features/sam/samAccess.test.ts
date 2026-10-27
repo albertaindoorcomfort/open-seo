@@ -6,7 +6,10 @@ const { envMock } = vi.hoisted(() => ({
 
 vi.mock("cloudflare:workers", () => ({ env: envMock }));
 
-import { getSamAccessStatus } from "@/server/features/sam/samAccess";
+import {
+  getSamAccessStatus,
+  refuseChatWhenSamUnavailable,
+} from "@/server/features/sam/samAccess";
 
 describe("getSamAccessStatus", () => {
   beforeEach(() => {
@@ -32,5 +35,21 @@ describe("getSamAccessStatus", () => {
       enabled: true,
       errorMessage: null,
     });
+  });
+});
+
+describe("refuseChatWhenSamUnavailable", () => {
+  beforeEach(() => {
+    delete process.env.OPENROUTER_API_KEY;
+    envMock.OPENROUTER_API_KEY = undefined;
+  });
+
+  it("answers 403 to a chat socket only while no model key is set", async () => {
+    // Regression: SAM was only hidden in the UI; a direct socket still
+    // reached the agent, whose every turn then failed.
+    expect((await refuseChatWhenSamUnavailable())?.status).toBe(403);
+
+    envMock.OPENROUTER_API_KEY = "test-key";
+    await expect(refuseChatWhenSamUnavailable()).resolves.toBeUndefined();
   });
 });

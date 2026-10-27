@@ -1,9 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { DEFAULT_LOCATION_CODE } from "@/shared/keyword-locations";
 import { LocationSelect } from "@/client/components/LocationSelect";
 import { LunarMark } from "@/client/components/LunarMark";
+import { useBillingMode } from "@/client/features/billing/useBillingMode";
+import { useSamAccess } from "@/client/features/sam/useSamAccess";
 import { useSession } from "@/lib/auth-client";
 import { saveOnboardingSite } from "@/serverFunctions/onboardingChat";
 import { OnboardingAccountMenu } from "./OnboardingAccountMenu";
@@ -24,9 +27,28 @@ function StrategyShell({ children }: { children: React.ReactNode }) {
 }
 
 export function OnboardingChat() {
+  const navigate = useNavigate();
   const stateQuery = useQuery(onboardingChatStateQueryOptions());
   const { data: session } = useSession();
   const accountMenu = <OnboardingAccountMenu email={session?.user?.email} />;
+
+  // This chat is a free preview that sells the paid plan through Autumn
+  // checkout. The placeholder ledger has nothing to sell (its checkout answers
+  // 503), and without a model key the chat cannot answer (the Worker refuses
+  // the socket), so either way the user goes to their project instead.
+  const projectId = stateQuery.data?.projectId ?? null;
+  const { billingMode } = useBillingMode(Boolean(session?.user?.id));
+  const samAccess = useSamAccess(projectId);
+  const chatUnavailable =
+    billingMode === "placeholder" || samAccess.showSetupGate;
+  useEffect(() => {
+    if (!projectId || !chatUnavailable) return;
+    void navigate({
+      to: "/p/$projectId",
+      params: { projectId },
+      replace: true,
+    });
+  }, [chatUnavailable, navigate, projectId]);
 
   if (stateQuery.isError) {
     return (
@@ -38,7 +60,15 @@ export function OnboardingChat() {
     );
   }
 
-  if (!stateQuery.data) {
+  // Hold the loading state until both checks answer (and while redirecting),
+  // so the conversation, and its Autumn checkout, only mounts once Autumn
+  // serves billing and SAM can answer.
+  if (
+    !stateQuery.data ||
+    billingMode === undefined ||
+    samAccess.isChecking ||
+    chatUnavailable
+  ) {
     return (
       <StrategyShell>
         <div className="flex flex-1 items-center justify-center gap-2 p-6 text-sm text-base-content/60">
@@ -49,15 +79,18 @@ export function OnboardingChat() {
     );
   }
 
-  const { projectId, domain } = stateQuery.data;
+  const { domain } = stateQuery.data;
 
   return (
     <StrategyShell>
       {accountMenu}
       {!domain ? (
-        <SiteForm projectId={projectId} />
+        <SiteForm projectId={stateQuery.data.projectId} />
       ) : (
-        <OnboardingChatConversation projectId={projectId} domain={domain} />
+        <OnboardingChatConversation
+          projectId={stateQuery.data.projectId}
+          domain={domain}
+        />
       )}
     </StrategyShell>
   );

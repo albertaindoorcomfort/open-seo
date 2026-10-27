@@ -6,6 +6,7 @@ import {
 } from "@/serverFunctions/middleware";
 import { AppError } from "@/server/lib/errors";
 import { SamSessionRepository } from "@/server/features/sam/SamSessionRepository";
+import { getSamAccessStatus } from "@/server/features/sam/samAccess";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
 
 // The ensure-user middleware authorizes `projectId` against the caller's org
@@ -24,11 +25,18 @@ export const listSamSessions = createServerFn({ method: "GET" })
   });
 
 // Creates a new SAM chat session and returns its id; the client then opens a DO
-// connection keyed by that id.
+// connection keyed by that id. Refused while no model key is set, the same
+// check the Worker runs before it lets a chat socket through.
 export const createSamSession = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(projectScopedSchema)
   .handler(async ({ context }) => {
+    if (!(await getSamAccessStatus()).enabled) {
+      throw new AppError(
+        "FORBIDDEN",
+        "SAM is not available on this deployment",
+      );
+    }
     const session = await SamSessionRepository.createSession({
       projectId: context.projectId,
       userId: context.userId,

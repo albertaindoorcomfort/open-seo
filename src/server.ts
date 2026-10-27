@@ -6,6 +6,7 @@ import { routeAgentRequest } from "agents";
 import { resolveUserContextFromHeaders } from "@/middleware/ensure-user/resolve";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
 import { SamSessionRepository } from "@/server/features/sam/SamSessionRepository";
+import { refuseChatWhenSamUnavailable } from "@/server/features/sam/samAccess";
 import { runScheduledRankChecks } from "@/server/features/rank-tracking/services/scheduledRankChecks";
 import { reconcileStaleAudits } from "@/server/features/audit/services/auditReconciler";
 import { getOrCreateOrganizationCustomer } from "@/server/billing/subscription";
@@ -50,6 +51,9 @@ async function authorizeOnboardingChat(
   } catch {
     return new Response("Unauthorized", { status: 401 });
   }
+  // The onboarding chat runs on the same model key as SAM.
+  const samUnavailable = await refuseChatWhenSamUnavailable();
+  if (samUnavailable) return samUnavailable;
   const project = await ProjectRepository.getProjectForOrganization(
     projectId,
     context.organizationId,
@@ -82,6 +86,8 @@ async function authorizeSamChat(
   } catch {
     return new Response("Unauthorized", { status: 401 });
   }
+  const samUnavailable = await refuseChatWhenSamUnavailable();
+  if (samUnavailable) return samUnavailable;
   const session = await SamSessionRepository.getActiveSession(
     sessionId,
     context.userId,

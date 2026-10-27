@@ -92,6 +92,8 @@ export function OnboardingChatConversation({
   // This chat is only ever the pre-upgrade free preview: once a user upgrades
   // they are routed into the GSC onboarding step and never return here, so
   // there's no "paid" state to model — the question cap always applies.
+  // OnboardingChat mounts this only while Autumn serves billing, so the
+  // customer lookup never hits the placeholder ledger's 503.
   const customerQuery = useCustomer();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);

@@ -47,6 +47,8 @@ const PROJECT_CONTEXT_BLOCK = "project_context";
 
 const PUBLIC_ORIGIN_KEY = "sam-public-origin";
 
+const SAM_CHAT_ERROR_MESSAGE = "SAM could not finish this reply. Try again.";
+
 // Derive a short session title from the first user message.
 function deriveTitle(text: string): string {
   const trimmed = text.replace(/\s+/g, " ").trim();
@@ -367,9 +369,11 @@ export class SamChatAgent extends Think {
 
   // The return value becomes the stored chat-terminal body that reconnecting
   // clients replay — returning nothing would make it the string "undefined".
+  // The raw error stays in the logs: it can name server configuration (a
+  // missing OPENROUTER_API_KEY), which the browser must never see.
   onChatError(error: unknown, ctx?: ChatErrorContext): unknown {
     console.error("[sam] chat turn error", ctx?.stage, error);
-    return error;
+    return SAM_CHAT_ERROR_MESSAGE;
   }
 
   // POST .../rewind {messageId}: delete that message and everything after it on
