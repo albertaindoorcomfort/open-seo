@@ -63,7 +63,7 @@ describe("placeholder ledger", () => {
     expect(placeholderDailyCredits("nope")).toBe(2000);
   });
 
-  it("grants the paid plan, never managed access or top-ups", async () => {
+  it("grants the paid plan and managed access (D1), never top-ups", async () => {
     const customerId = "org_1";
     expect(
       (
@@ -80,7 +80,7 @@ describe("placeholder ledger", () => {
           featureId: AUTUMN_MANAGED_ACCESS_FEATURE_ID,
         })
       ).allowed,
-    ).toBe(false);
+    ).toBe(true);
     const topup = await placeholderAutumn.check({
       customerId,
       featureId: AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,

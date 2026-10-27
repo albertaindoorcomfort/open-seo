@@ -61,6 +61,23 @@ async function remainingToday(customerId: string): Promise<number> {
   );
 }
 
+/**
+ * D1 (owner, 2026-10-27): while this ledger is active, sign-up is invite-only
+ * (src/lib/auth.ts), so the ledger grants managed_service_access to every
+ * invited organization and site audits run. The switch is
+ * LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS: unset or "on" grants it (the D1
+ * default), "off" (or "false", "0", "no") denies it again. Real billing
+ * (AUTUMN_SECRET_KEY) never reads it.
+ */
+function placeholderGrantsManagedAccess(
+  raw: unknown = Reflect.get(env, "LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS"),
+): boolean {
+  return !(
+    typeof raw === "string" &&
+    ["off", "false", "0", "no"].includes(raw.trim().toLowerCase())
+  );
+}
+
 type CheckArgs = { customerId: string; featureId: string };
 // Autumn allows track() by event name with no featureId; the ledger then records nothing.
 type TrackArgs = { customerId: string; featureId?: string; value?: number };
@@ -70,7 +87,11 @@ export const placeholderAutumn = {
     if (featureId === AUTUMN_PAID_PLAN_FEATURE_ID)
       return { allowed: true, customerId, featureId };
     if (featureId === AUTUMN_MANAGED_ACCESS_FEATURE_ID)
-      return { allowed: false, customerId, featureId };
+      return {
+        allowed: placeholderGrantsManagedAccess(),
+        customerId,
+        featureId,
+      };
     if (featureId === AUTUMN_SEO_DATA_BALANCE_FEATURE_ID) {
       const remaining = await remainingToday(customerId);
       return {
