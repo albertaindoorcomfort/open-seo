@@ -46,7 +46,6 @@ import { getPublicOrigin } from "@/server/mcp/public-origin";
 import { MCP_SCOPE } from "@/lib/oauth-resource";
 import { AuthRepository } from "@/server/auth/repositories/AuthRepository";
 import type { ToolAuthContext } from "@/server/mcp/context";
-import { BRAND } from "@/shared/brand";
 
 // SAM's read-only view of the project's shared memory. The block has no `set`
 // provider, so Think exposes no set_context tool for it; writes go through the
@@ -268,7 +267,7 @@ export class SamChatAgent extends Think {
     return withPgClient(async () => {
       const ctx = await this.loadSamContext();
       if (!ctx) {
-        return `You are SAM, the SEO agent inside ${BRAND.name}. This chat session no longer exists; tell the user to start a new chat.`;
+        return "You are SAM, the SEO agent. This chat session no longer exists; tell the user to start a new chat.";
       }
       const context = await ProjectContextService.getProjectContext(
         ctx.project.id,

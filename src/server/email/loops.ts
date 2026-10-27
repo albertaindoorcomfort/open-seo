@@ -123,7 +123,7 @@ export async function sendHostedVerificationEmail({
     email,
     transactionalId: config.verificationTemplateId,
     dataVariables: {
-      appName: `${BRAND.name}`,
+      appName: BRAND.name,
       confirmationUrl,
     },
   });
@@ -151,7 +151,7 @@ export async function sendHostedInvitationEmail({
     email,
     transactionalId: templateId,
     dataVariables: {
-      appName: `${BRAND.name}`,
+      appName: BRAND.name,
       inviteUrl,
       organizationName,
       inviterName,
@@ -173,7 +173,7 @@ export async function sendHostedPasswordResetEmail({
     email,
     transactionalId: config.passwordResetTemplateId,
     dataVariables: {
-      appName: `${BRAND.name}`,
+      appName: BRAND.name,
       resetUrl,
     },
   });

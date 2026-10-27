@@ -13,7 +13,7 @@ export function OnboardingCard({
   return (
     <div className="w-full max-w-xl py-8">
       <div className="flex items-center justify-center gap-2 text-sm font-semibold">
-        <img src="/transparent-logo.png" alt="" className="size-7" />
+        <img src={BRAND.logo} alt="" className="size-7" />
         {BRAND.name}
       </div>
       <main className="mt-8 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm md:mt-12 md:p-10">

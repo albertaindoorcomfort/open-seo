@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { BRAND } from "@/shared/brand";
 
-const SUPPORT_EMAIL = "ben@openseo.so";
+const SUPPORT_EMAIL = BRAND.supportEmail;
 const DISCORD_URL = "https://discord.gg/c9uGs3cFXr";
 const GITHUB_URL = "https://github.com/every-app/open-seo";
 

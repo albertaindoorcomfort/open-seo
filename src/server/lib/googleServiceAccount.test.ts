@@ -23,6 +23,10 @@ async function makeKey() {
   return { pem, publicKey: pair.publicKey };
 }
 
+function decode(part: string): unknown {
+  return JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
+}
+
 describe("parseServiceAccountConfig", () => {
   it("needs both a valid key and at least one allowed user", async () => {
     const { pem } = await makeKey();
@@ -53,8 +57,6 @@ describe("signServiceAccountAssertion", () => {
       1_700_000_000,
     );
     const [header, claims, signature] = jwt.split(".");
-    const decode = (part: string) =>
-      JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
     expect(decode(header)).toEqual({ alg: "RS256", typ: "JWT" });
     expect(decode(claims)).toMatchObject({
       iss: "reader@example.iam.gserviceaccount.com",

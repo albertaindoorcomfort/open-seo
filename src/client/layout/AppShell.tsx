@@ -181,7 +181,13 @@ function MobileTopBar({
       >
         <Menu className="h-5 w-5" />
       </button>
-      <Link to="/" className="ml-1 font-semibold text-base-content">
+      <Link
+        to="/"
+        className="ml-1 flex items-center gap-2 font-semibold text-base-content"
+      >
+        {BRAND.assetDir ? (
+          <img src={BRAND.logo} alt="" className="size-6 rounded" />
+        ) : null}
         {BRAND.name}
       </Link>
     </div>

@@ -73,11 +73,7 @@ function OAuthConsentPage() {
   return (
     <div className="w-full max-w-md rounded-2xl border border-base-300 bg-base-100 p-8 shadow-sm">
       <div className="flex flex-col items-center text-center">
-        <img
-          src="/transparent-logo.png"
-          alt={`${BRAND.name}`}
-          className="size-10 rounded-lg"
-        />
+        <img src={BRAND.logo} alt={BRAND.name} className="size-10 rounded-lg" />
         <h1 className="mt-5 text-xl font-semibold">Authorize MCP access</h1>
         <p className="mt-2 text-sm text-base-content/70">
           An MCP client is requesting access to your {BRAND.name} workspace.

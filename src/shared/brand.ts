@@ -13,8 +13,8 @@ export type Brand = {
   logo: string;
   /** Folder under /public holding favicons and site.webmanifest. */
   assetDir: string;
-  /** Null hides the email; VITE_BRAND_SUPPORT_EMAIL sets it per deployment. */
-  supportEmail: string | null;
+  /** VITE_BRAND_SUPPORT_EMAIL sets it per deployment. */
+  supportEmail: string;
   /** Public site the product links back to. */
   websiteUrl: string;
   /** User agent the crawler and reference fetcher announce. */
@@ -44,7 +44,7 @@ const BRANDS: Record<string, Brand> = {
     owner: "Alberta Indoor Comfort",
     logo: "/brands/aic/logo.png",
     assetDir: "/brands/aic",
-    supportEmail: null,
+    supportEmail: "",
     websiteUrl: "https://albertaindoorcomfort.com",
     crawlerAgent: "AIC-SEO-Audit/1.0",
     showUpstreamPromotion: false,
@@ -59,9 +59,14 @@ export function resolveBrand(
   return supportEmail ? { ...brand, supportEmail } : brand;
 }
 
+/** The crawler's product token, as site owners see it in their logs. */
+export function crawlerName(brand: Brand = BRAND): string {
+  return brand.crawlerAgent.split("/")[0];
+}
+
 export const BRAND: Brand = resolveBrand(
-  import.meta.env.VITE_BRAND,
-  import.meta.env.VITE_BRAND_SUPPORT_EMAIL,
+  import.meta.env?.VITE_BRAND,
+  import.meta.env?.VITE_BRAND_SUPPORT_EMAIL,
 );
 
 /** Favicon, touch icon and manifest paths for the active brand. */

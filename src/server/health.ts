@@ -40,7 +40,9 @@ export async function checkDependencies(env: object): Promise<Dependency[]> {
   const bindings = env as HealthEnv;
   const [database, kv, storage] = await Promise.all([
     bindings.DB
-      ? probe(() => bindings.DB!.prepare("select 1").first())
+      ? probe(() =>
+          bindings.DB!.prepare("select 1 from projects limit 1").first(),
+        )
       : Promise.resolve<DependencyState>("down"),
     bindings.KV
       ? probe(() => bindings.KV!.get("health:probe"))

@@ -8,7 +8,7 @@ import {
 import { REPORT_IFRAME_SANDBOX } from "@/shared/report-sandbox";
 import { sharePath } from "@/shared/report-share";
 import { domainField } from "@/types/schemas/domain";
-import { BRAND } from "@/shared/brand";
+import { BRAND, brandAsset } from "@/shared/brand";
 
 // The public face of a shared report, `/s/<token>`: a slim bar and the
 // document in the same sandboxed frame the in-app viewer uses. Rendered to a
@@ -82,6 +82,7 @@ document.getElementById("share").addEventListener("click",async function(){
 });`;
 
 function TryButton() {
+  if (!BRAND.showUpstreamPromotion) return null;
   return (
     <a
       className="btn primary"
@@ -114,7 +115,7 @@ function Document({
         <meta name="robots" content="noindex, nofollow" />
         <title>{`${title} · ${BRAND.name}`}</title>
         {head}
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href={brandAsset("favicon.ico")} />
         <style dangerouslySetInnerHTML={{ __html: STYLES }} />
       </head>
       <body>{children}</body>
@@ -196,7 +197,7 @@ export async function renderSharePage(
       head={
         <>
           <meta property="og:type" content="article" />
-          <meta property="og:site_name" content={`${BRAND.name}`} />
+          <meta property="og:site_name" content={BRAND.name} />
           <meta property="og:title" content={report.title} />
           <meta name="twitter:title" content={report.title} />
           {description ? (

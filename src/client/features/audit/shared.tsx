@@ -1,6 +1,7 @@
+import { BRAND } from "@/shared/brand";
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
-export const SUPPORT_EMAIL = "ben@openseo.so";
+export const SUPPORT_EMAIL = BRAND.supportEmail;
 
 export function extractPathname(url: string): string {
   try {

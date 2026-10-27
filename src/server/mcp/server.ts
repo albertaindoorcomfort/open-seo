@@ -150,18 +150,24 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   const server = new McpServer(
     {
       name: `${BRAND.name} MCP`,
-      title: `${BRAND.name}`,
+      title: BRAND.name,
       version: "0.0.12",
       description:
         "SEO research tools for AI agents: keyword research and metrics, SERP and local SERP results, domain and backlink analysis, rank tracking, and Google Search Console performance.",
-      websiteUrl: "https://openseo.so",
-      icons: [
-        {
-          src: "https://openseo.so/android-chrome-512x512.png",
-          mimeType: "image/png",
-          sizes: ["512x512"],
-        },
-      ],
+      websiteUrl: BRAND.websiteUrl,
+      // The upstream mark is hosted on its own site; tenant brands have no
+      // fixed public origin for theirs, so they ship without an icon.
+      ...(BRAND.showUpstreamPromotion
+        ? {
+            icons: [
+              {
+                src: "https://openseo.so/android-chrome-512x512.png",
+                mimeType: "image/png",
+                sizes: ["512x512"],
+              },
+            ],
+          }
+        : {}),
     },
     {
       // The tool list is fixed per request and no list_changed notification
