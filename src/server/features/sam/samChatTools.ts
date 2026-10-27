@@ -3,6 +3,7 @@ import { z, type ZodRawShape } from "zod";
 import { withPgClient } from "@/db";
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import { type ToolAuthContext, type ToolContext } from "@/server/mcp/context";
+import { withSampleNotice } from "@/server/mcp/formatters";
 import { instrumentMcpToolHandler } from "@/server/mcp/instrumentation";
 import { getBacklinksOverviewTool } from "@/server/mcp/tools/get-backlinks-overview";
 import { getBacklinksProfileTool } from "@/server/mcp/tools/get-backlinks-profile";
@@ -125,7 +126,9 @@ function adaptMcpTool<Shape extends ZodRawShape>(
         // request scope, so each execution scopes its own Postgres client
         // (no-op in D1 mode) — same rule as the DO's other DB-touching seams.
         return toModelOutput(
-          await withPgClient(() => handler(fullArgs, context)),
+          await withSampleNotice(
+            await withPgClient(() => handler(fullArgs, context)),
+          ),
         );
       } catch (error) {
         // Surface the failure to the model so it can recover or report it,

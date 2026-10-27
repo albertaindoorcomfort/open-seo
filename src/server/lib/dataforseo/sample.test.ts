@@ -15,7 +15,11 @@ import {
   fetchLlmResponse,
 } from "@/server/lib/dataforseo/ai";
 import { fetchDomainPagesSummary } from "@/server/lib/dataforseo/backlinks";
-import { fetchBusinessListingsSearch } from "@/server/lib/dataforseo/business";
+import {
+  fetchBusinessListingsSearch,
+  postGoogleReviewsTask,
+  postMyBusinessUpdatesTask,
+} from "@/server/lib/dataforseo/business";
 import { labsApi, serpApi } from "@/server/lib/dataforseo/core";
 import {
   inDataforseoSampleMode,
@@ -216,6 +220,24 @@ describe("authenticated fetch in sample mode", () => {
       device: "desktop",
     });
     expect(posted.data[0]?.taskId).toMatch(/^sample-/);
+  });
+
+  it("queues no other sample post, so reviews and business updates are never reported for a real profile", async () => {
+    const business = {
+      keyword: "Acme Heating",
+      locationCode: 2124,
+      languageCode: "en",
+    };
+    await expect(
+      postGoogleReviewsTask({
+        ...business,
+        depth: 20,
+        includeOtherSources: false,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      postMyBusinessUpdatesTask({ ...business, depth: 10 }),
+    ).rejects.toThrow();
   });
 
   it("answers the AI, backlink top pages and local listings endpoints with labelled samples", async () => {

@@ -4,6 +4,7 @@ import {
   createDataforseoClient,
   fetchKeywordMetricsForList,
 } from "@/server/lib/dataforseo";
+import { trackDataforseoSample } from "@/server/lib/dataforseo/sample-scope";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 import type { RefreshSavedKeywordMetricsInput } from "@/types/schemas/keywords";
 
@@ -36,12 +37,17 @@ export async function refreshSavedKeywordMetrics(
 
   for (const groupRows of groups.values()) {
     const { locationCode, languageCode } = groupRows[0].row;
-    const metrics = await fetchKeywordMetricsForList(client, {
-      keywords: groupRows.map((r) => r.row.keyword),
-      locationCode,
-      languageCode,
-      creditFeature: "keyword_research",
-    });
+    const { value: metrics, sample } = await trackDataforseoSample(() =>
+      fetchKeywordMetricsForList(client, {
+        keywords: groupRows.map((r) => r.row.keyword),
+        locationCode,
+        languageCode,
+        creditFeature: "keyword_research",
+      }),
+    );
+    // Sample metrics are never stored, and once this request has had a sample
+    // answer no later write is either, so stop and report what was stored.
+    if (sample) return { updated };
     const byKeyword = new Map(
       metrics.map((metric) => [metric.keyword.toLowerCase(), metric]),
     );

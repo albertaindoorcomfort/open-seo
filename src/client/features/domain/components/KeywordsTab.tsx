@@ -176,7 +176,6 @@ export function KeywordsTab({
   const handleSaveKeywords = useCallback(() => {
     saveSelectedKeywords({
       selectedKeywords,
-      filteredKeywords: rows,
       save: saveMutation.mutate,
       projectId,
       locationCode: routeState.sentLocationCode,
@@ -184,7 +183,6 @@ export function KeywordsTab({
   }, [
     projectId,
     routeState.sentLocationCode,
-    rows,
     saveMutation.mutate,
     selectedKeywords,
   ]);

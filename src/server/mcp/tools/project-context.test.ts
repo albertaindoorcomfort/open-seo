@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { updateProjectContextTool } from "./project-context";
 import { makeToolContext, textContent } from "./tool-test-support";
 
@@ -75,5 +75,44 @@ describe("update_project_context", () => {
       }),
     );
     expect(textContent(result)).toContain("Grow signups");
+  });
+
+  describe("figures", () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    const writeGoal = () =>
+      updateProjectContextTool.handler(
+        {
+          projectId: "project_1",
+          updates: [
+            { section: "current_goal", content: "Rank for 2,400 searches" },
+          ],
+        },
+        makeToolContext(),
+      );
+
+    // No key: every DataForSEO figure an agent read was sample data.
+    it("labels figures it stores while DataForSEO answers with sample data", async () => {
+      vi.stubEnv("DATAFORSEO_API_KEY", "");
+      await writeGoal();
+
+      expect(mocks.upsertSection).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          content:
+            "Rank for 2,400 searches (Written while OpenSEO showed sample data: any search figure here is made up.)",
+        }),
+      );
+    });
+
+    it("stores figures unchanged while DataForSEO answers live", async () => {
+      vi.stubEnv("DATAFORSEO_API_KEY", "fake-test-key");
+      await writeGoal();
+
+      expect(mocks.upsertSection).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ content: "Rank for 2,400 searches" }),
+      );
+    });
   });
 });

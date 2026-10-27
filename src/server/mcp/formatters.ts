@@ -1,4 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/server";
+import { dataforseoSampleNotice } from "@/server/lib/dataforseo/sample";
 
 type McpResponseMeta = {
   url?: string;
@@ -52,4 +53,20 @@ export function mcpResponse(opts: {
     result._meta = meta;
   }
   return result;
+}
+
+/**
+ * Puts the sample-data notice first on a tool result while DataForSEO answers
+ * with sample data, so an agent (MCP client or SAM) never reports or stores
+ * sample figures as real ones.
+ */
+export async function withSampleNotice(
+  result: CallToolResult,
+): Promise<CallToolResult> {
+  const notice = result.isError ? null : await dataforseoSampleNotice();
+  if (!notice) return result;
+  return {
+    ...result,
+    content: [{ type: "text", text: notice }, ...(result.content ?? [])],
+  };
 }

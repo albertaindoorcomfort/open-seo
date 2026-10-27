@@ -9,6 +9,7 @@ import {
   type McpProps,
   type ToolContext,
 } from "@/server/mcp/context";
+import { withSampleNotice } from "@/server/mcp/formatters";
 import { objectSchema } from "@/server/mcp/output-schemas";
 import { instrumentMcpToolHandler } from "@/server/mcp/instrumentation";
 import { getBacklinksOverviewTool } from "@/server/mcp/tools/get-backlinks-overview";
@@ -115,12 +116,13 @@ function registerOpenSeoTool<Input extends ToolSchema>(
       inputSchema: objectSchema(tool.config.inputSchema),
       outputSchema,
     },
-    (args, context) => {
-      return handler(
+    async (args, context) => {
+      const result = await handler(
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- args were validated against the tool's own inputSchema just above
         args as ToolArgs<Input>,
         createMcpToolContext(context, authProps),
       );
+      return withSampleNotice(result);
     },
   );
 }

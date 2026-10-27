@@ -1,18 +1,11 @@
 import { toast } from "sonner";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { captureClientEvent } from "@/client/lib/posthog";
-import type { KeywordRow } from "@/client/features/domain/types";
 
 type SaveMutation = (payload: {
   projectId: string;
   keywords: string[];
   locationCode?: number;
-  metrics?: Array<{
-    keyword: string;
-    searchVolume?: number | null;
-    cpc?: number | null;
-    keywordDifficulty?: number | null;
-  }>;
 }) => void;
 
 type SaveOptions = {
@@ -22,13 +15,11 @@ type SaveOptions = {
 
 export function saveSelectedKeywords({
   selectedKeywords,
-  filteredKeywords,
   save,
   projectId,
   locationCode,
 }: {
   selectedKeywords: Set<string>;
-  filteredKeywords: KeywordRow[];
   save: (payload: Parameters<SaveMutation>[0], opts?: SaveOptions) => void;
   projectId: string;
   locationCode?: number;
@@ -38,20 +29,13 @@ export function saveSelectedKeywords({
     return;
   }
 
-  const selectedRows = filteredKeywords.filter((row) =>
-    selectedKeywords.has(row.keyword),
-  );
+  // Only the keywords: the server never takes metrics from the browser (they
+  // may be sample data). "Update keyword stats" on the saved list fills them.
   save(
     {
       projectId,
       keywords: [...selectedKeywords],
       locationCode,
-      metrics: selectedRows.map((row) => ({
-        keyword: row.keyword,
-        searchVolume: row.searchVolume,
-        cpc: row.cpc,
-        keywordDifficulty: row.keywordDifficulty,
-      })),
     },
     {
       onSuccess: () => {

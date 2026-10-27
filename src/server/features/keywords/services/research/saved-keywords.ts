@@ -38,45 +38,9 @@ export async function saveKeywords(input: ResolvedSaveKeywordsInput) {
     ),
   ];
 
-  const metricByKeyword = new Map(
-    (input.metrics ?? [])
-      .map((metric) => {
-        const keyword = normalizeKeyword(metric.keyword);
-        if (!keyword || !normalizedKeywords.includes(keyword)) return null;
-        return [keyword, metric] as const;
-      })
-      .filter(
-        (
-          entry,
-        ): entry is readonly [
-          string,
-          NonNullable<typeof input.metrics>[number],
-        ] => entry != null,
-      ),
-  );
-
-  if (metricByKeyword.size > 0) {
-    await Promise.all(
-      normalizedKeywords.map(async (keyword) => {
-        const metric = metricByKeyword.get(keyword);
-        if (!metric) return;
-
-        await KeywordResearchRepository.upsertKeywordMetric({
-          projectId: input.projectId,
-          keyword,
-          locationCode: input.locationCode,
-          languageCode: input.languageCode,
-          searchVolume: metric.searchVolume ?? null,
-          cpc: metric.cpc ?? null,
-          competition: metric.competition ?? null,
-          keywordDifficulty: metric.keywordDifficulty ?? null,
-          intent: metric.intent ?? null,
-          monthlySearchesJson: JSON.stringify(metric.monthlySearches ?? []),
-        });
-      }),
-    );
-  }
-
+  // Only the keywords are saved. Metrics come from storage, never from the
+  // caller: research stores the live metrics it fetched for this project, and
+  // refreshSavedKeywordMetrics fills any keyword still without them.
   const savedRows = await KeywordResearchRepository.saveKeywordsToProject({
     projectId: input.projectId,
     keywords: normalizedKeywords,

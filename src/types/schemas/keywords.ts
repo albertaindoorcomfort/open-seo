@@ -31,33 +31,6 @@ export const researchKeywordsSchema = z.object({
   clickstream: z.boolean().optional().default(false),
 });
 
-export const savedKeywordMetricSchema = z.object({
-  keyword: z.string().min(1),
-  searchVolume: z.number().int().nonnegative().nullable().optional(),
-  cpc: z.number().nonnegative().nullable().optional(),
-  competition: z.number().min(0).max(1).nullable().optional(),
-  keywordDifficulty: z.number().int().min(0).max(100).nullable().optional(),
-  intent: z
-    .enum([
-      "informational",
-      "commercial",
-      "transactional",
-      "navigational",
-      "unknown",
-    ])
-    .nullable()
-    .optional(),
-  monthlySearches: z
-    .array(
-      z.object({
-        year: z.number().int().positive(),
-        month: z.number().int().min(1).max(12),
-        searchVolume: z.number().int().nonnegative(),
-      }),
-    )
-    .optional(),
-});
-
 export const saveKeywordsSchema = z
   .object({
     projectId: z.string().min(1),
@@ -66,7 +39,9 @@ export const saveKeywordsSchema = z
     languageCode: z.string().min(2).max(8).optional(),
     tags: z.array(savedKeywordTagSchema).max(20).optional(),
     tagMode: z.enum(["append", "replace"]).optional(),
-    metrics: z.array(savedKeywordMetricSchema).max(500).optional(),
+    // No metrics: figures a caller sends cannot be trusted (they may be sample
+    // data). Research stores its own live metrics, and "Update keyword stats" fills
+    // the rest.
   })
   .refine(
     (value) => value.tagMode !== "replace" || (value.tags?.length ?? 0) > 0,

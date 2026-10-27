@@ -13,12 +13,6 @@ export function useSaveKeywordsMutation({
       projectId: string;
       keywords: string[];
       locationCode?: number;
-      metrics?: Array<{
-        keyword: string;
-        searchVolume?: number | null;
-        cpc?: number | null;
-        keywordDifficulty?: number | null;
-      }>;
     }) => saveKeywords({ data }),
     onSuccess: () => {
       void queryClient.invalidateQueries({

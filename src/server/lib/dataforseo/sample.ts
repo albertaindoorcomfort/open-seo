@@ -45,6 +45,17 @@ export async function inDataforseoSampleMode(): Promise<boolean> {
   return (await readDataforseoKey()) === null;
 }
 
+const SAMPLE_NOTICE =
+  "Sample data: DataForSEO is answering with sample data, so any search volume, CPC, keyword difficulty, ranking, SERP, backlink, AI mention or local business figure in this result is made up. Say so when you use one, and never store it as real.";
+
+/**
+ * The notice an agent's tool result carries while data produced now may be
+ * sample data (outside a request scope: no key), or null.
+ */
+export async function dataforseoSampleNotice(): Promise<string | null> {
+  return (await inDataforseoSampleMode()) ? SAMPLE_NOTICE : null;
+}
+
 /** The DataForSEO key, or null only when the variable is missing (sample mode). */
 export async function readDataforseoKey(): Promise<string | null> {
   try {
@@ -250,8 +261,10 @@ export function sampleDataforseoBody(url: string, requestBody: unknown): Json {
   })();
   const rel = pathname.replace(/^\/v3\//, "");
   // DataForSEO accepts a queued task with 20100 "Task Created." and no result
-  // yet; the queued rank check reads any other status as a rejection.
-  const queued = rel.endsWith("/task_post");
+  // yet; the queued rank check reads any other status as a rejection. Only the
+  // rank check is queued: a sample reviews or business updates post must not
+  // succeed, or a later collection would report a real profile as empty.
+  const queued = rel === "serp/google/organic/task_post";
   const tasks = (
     Array.isArray(requestBody) && requestBody.length > 0 ? requestBody : [{}]
   ).map((t, i) => {

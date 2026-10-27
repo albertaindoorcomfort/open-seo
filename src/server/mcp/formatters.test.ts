@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mcpResponse } from "./formatters";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mcpResponse, withSampleNotice } from "./formatters";
 
 describe("mcpResponse", () => {
   it("returns content as a text block", () => {
@@ -81,4 +81,27 @@ describe("mcpResponse", () => {
       meta: { url: "https://app.openseo.so" },
     });
   });
+});
+
+describe("withSampleNotice", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  // An empty value reads as no key (sample mode); the key here is fake.
+  it.each([
+    { key: "", notice: true },
+    { key: "fake-test-key", notice: false },
+  ])(
+    'puts the sample notice first exactly while DataForSEO answers with sample data (key: "$key")',
+    async ({ key, notice }) => {
+      vi.stubEnv("DATAFORSEO_API_KEY", key);
+      const result = await withSampleNotice(mcpResponse({ text: "hi" }));
+
+      const texts = (result.content ?? []).map((part) =>
+        part.type === "text" ? part.text : "",
+      );
+      expect(texts.length).toBe(notice ? 2 : 1);
+      expect(texts[0].startsWith("Sample data:")).toBe(notice);
+      expect(texts.at(-1)).toBe("hi");
+    },
+  );
 });

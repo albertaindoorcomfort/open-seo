@@ -8,9 +8,11 @@ import {
 } from "@/server/mcp/output-schemas";
 import { withMcpProjectAuth } from "@/server/mcp/project-auth";
 import { projectIdSchema } from "@/server/mcp/schemas";
+import { inDataforseoSampleMode } from "@/server/lib/dataforseo/sample";
 import {
   updateProjectContextSchema,
   type ContextAuthor,
+  type ProjectContextUpdate,
 } from "@/types/schemas/projectContext";
 
 // Both tools return the whole context, so they share one output shape. Every
@@ -27,6 +29,33 @@ const contextOutputSchema = {
 } as const;
 
 const contextPath = (projectId: string) => `/p/${projectId}/settings/context`;
+
+// While DataForSEO answers with sample data, prose an agent stores with a
+// number in it is labelled, so a sample figure never passes for a measurement
+// once a key or credits exist.
+const SAMPLE_FIGURES_LABEL =
+  "(Written while OpenSEO showed sample data: any search figure here is made up.)";
+
+function labelFigures(text: string): string {
+  if (!/\d/.test(text) || text.includes(SAMPLE_FIGURES_LABEL)) return text;
+  return `${text} ${SAMPLE_FIGURES_LABEL}`;
+}
+
+function labelSampleFigures(
+  update: ProjectContextUpdate,
+): ProjectContextUpdate {
+  if ("section" in update || "customSection" in update) {
+    return { ...update, content: labelFigures(update.content) };
+  }
+  if ("appendResearchLog" in update) {
+    return {
+      appendResearchLog: {
+        summary: labelFigures(update.appendResearchLog.summary),
+      },
+    };
+  }
+  return update;
+}
 
 const getInputSchema = { projectId: projectIdSchema } as const;
 
@@ -96,9 +125,12 @@ export function buildUpdateProjectContextTool(author: ContextAuthor) {
     },
     handler: withMcpProjectAuth(
       async (args: z.infer<z.ZodObject<typeof updateInputSchema>>, context) => {
+        const updates = (await inDataforseoSampleMode())
+          ? args.updates.map(labelSampleFigures)
+          : args.updates;
         const projectContext = await ProjectContextService.applyContextUpdates(
           args.projectId,
-          args.updates,
+          updates,
           author,
         );
         return mcpResponse({

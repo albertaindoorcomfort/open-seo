@@ -214,7 +214,6 @@ export function useKeywordResearchController(
   const { handleSaveKeywords, confirmSave, exportCsv, sheetsExportRows } =
     useSaveAndExportActions({
       selectedRows,
-      rows,
       filteredRows,
       input,
       saveKeywordsMutate: saveMutation.mutate,

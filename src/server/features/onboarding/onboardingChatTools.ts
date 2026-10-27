@@ -5,6 +5,8 @@ import { MAX_PAGES, readPages, readSite } from "@/server/lib/scrape";
 import { DomainService } from "@/server/features/domain/services/DomainService";
 import { KeywordResearchService } from "@/server/features/keywords/services/KeywordResearchService";
 import { createDataforseoClient } from "@/server/lib/dataforseo";
+import { isRecord } from "@/server/lib/dataforseo/envelope";
+import { dataforseoSampleNotice } from "@/server/lib/dataforseo/sample";
 import { marketTools } from "@/server/features/onboarding/onboardingMarketTools";
 import { isLabsLocationCode, LOCATIONS } from "@/shared/keyword-locations";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
@@ -65,7 +67,31 @@ export function buildOnboardingTools({
       domain.replace(/^www\./, "").toLowerCase() === ownDomain,
   };
 
-  return { ...coreSiteTools(ctx), ...marketTools(ctx) } as ToolSet;
+  return withSampleNotices({ ...coreSiteTools(ctx), ...marketTools(ctx) });
+}
+
+// Each object result carries the sample-data notice while DataForSEO answers
+// with sample data, so the agent never presents sample figures as real.
+function withSampleNotices(tools: ToolSet): ToolSet {
+  return Object.fromEntries(
+    Object.entries(tools).map(([name, definition]) => {
+      const { execute } = definition;
+      if (!execute) return [name, definition];
+      return [
+        name,
+        {
+          ...definition,
+          execute: async (...args: Parameters<typeof execute>) => {
+            const result: unknown = await execute(...args);
+            const notice = await dataforseoSampleNotice();
+            return notice && isRecord(result)
+              ? { sampleNotice: notice, ...result }
+              : result;
+          },
+        },
+      ];
+    }),
+  );
 }
 
 // Tools that analyze the user's own site (read_website, get_seo_metrics,

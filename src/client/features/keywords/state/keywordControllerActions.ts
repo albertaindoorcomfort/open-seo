@@ -34,7 +34,6 @@ export function keywordResearchExportRow(row: KeywordResearchRow): CsvValue[] {
 
 type SaveExportActionParams = {
   selectedRows: Set<string>;
-  rows: KeywordResearchRow[];
   filteredRows: KeywordResearchRow[];
   input: KeywordResearchControllerInput;
   saveKeywordsMutate: (
@@ -93,7 +92,6 @@ export function getNextSortParams(
 export function useSaveAndExportActions(params: SaveExportActionParams) {
   const {
     selectedRows,
-    rows,
     filteredRows,
     input,
     saveKeywordsMutate,
@@ -109,24 +107,13 @@ export function useSaveAndExportActions(params: SaveExportActionParams) {
   };
 
   const confirmSave = () => {
-    const metrics = rows
-      .filter((row) => selectedRows.has(row.keyword))
-      .map((row) => ({
-        keyword: row.keyword,
-        searchVolume: row.searchVolume,
-        cpc: row.cpc,
-        competition: row.competition,
-        keywordDifficulty: row.keywordDifficulty,
-        intent: row.intent,
-        monthlySearches: row.trend,
-      }));
-
+    // Only the keywords: the server never takes metrics from the browser (they
+    // may be sample data), and keeps the live ones research already stored.
     saveKeywordsMutate(
       {
         projectId: input.projectId,
         keywords: [...selectedRows],
         locationCode: input.locationCode,
-        metrics,
       },
       {
         onSuccess: () => {
