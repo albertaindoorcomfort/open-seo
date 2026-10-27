@@ -33,19 +33,23 @@ describe("site audit gate on the placeholder ledger (D1)", () => {
     env.LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS = undefined;
   });
 
-  it("lets an invited organization run site audits by default", async () => {
+  it("lets an invited organization run site audits by default, on the placeholder tier", async () => {
     await expect(
       AuditService.resolveAuditLimitTier("org_invited"),
-    ).resolves.toBe("paid");
+    ).resolves.toBe("placeholder");
   });
 
-  it("refuses audits again when LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS is off", async () => {
-    env.LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS = "off";
+  it("refuses audits for off and for any value it does not recognise", async () => {
+    for (const value of ["off", "disabled", "n"]) {
+      env.LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS = value;
+      vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(
-      AuditService.resolveAuditLimitTier("org_invited"),
-    ).rejects.toMatchObject({
-      code: "PAYMENT_REQUIRED",
-    } satisfies Partial<AppError>);
+      await expect(
+        AuditService.resolveAuditLimitTier("org_invited"),
+        value,
+      ).rejects.toMatchObject({
+        code: "PAYMENT_REQUIRED",
+      } satisfies Partial<AppError>);
+    }
   });
 });

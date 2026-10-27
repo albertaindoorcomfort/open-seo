@@ -178,6 +178,20 @@ async function queryDoh(hostname: string, type: "A" | "AAAA") {
     .map((answer) => answer.data);
 }
 
+// One retry for a resolver blip (timeout, 5xx, SERVFAIL), so a short outage
+// does not drop pages from a running audit. A second failure still fails
+// closed.
+const DOH_RETRY_DELAY_MS = 250;
+
+async function queryDohWithRetry(hostname: string, type: "A" | "AAAA") {
+  try {
+    return await queryDoh(hostname, type);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, DOH_RETRY_DELAY_MS));
+    return queryDoh(hostname, type);
+  }
+}
+
 // A crawl asks about the same host for every page, so answers are kept for
 // a short while. Only settled values are kept: workerd does not let one
 // request await a promise another request started.
@@ -188,8 +202,8 @@ const resolveHostOverHttps: ResolveHost = async (hostname) => {
   const cached = dnsCache.get(hostname);
   if (cached && cached.expiresAt > Date.now()) return cached.addresses;
   const [v4, v6] = await Promise.all([
-    queryDoh(hostname, "A"),
-    queryDoh(hostname, "AAAA"),
+    queryDohWithRetry(hostname, "A"),
+    queryDohWithRetry(hostname, "AAAA"),
   ]);
   const addresses = [...v4, ...v6];
   if (dnsCache.size >= DNS_CACHE_MAX) dnsCache.clear();

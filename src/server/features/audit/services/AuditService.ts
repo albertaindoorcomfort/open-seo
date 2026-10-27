@@ -4,6 +4,7 @@ import {
   customerHasPaidPlan,
   type BillingCustomerContext,
 } from "@/server/billing/subscription";
+import { usesPlaceholderBilling } from "@/server/billing/autumn-placeholder";
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
 import { getAuditScratchpad } from "@/server/features/audit/AuditScratchpad";
 import {
@@ -40,6 +41,7 @@ async function resolveAuditLimitTier(
   if (!hasManagedAccess) {
     throw new AppError("PAYMENT_REQUIRED", "Subscribe to run site audits");
   }
+  if (await usesPlaceholderBilling()) return "placeholder";
   return hasPaidPlan ? "paid" : "free";
 }
 

@@ -6,7 +6,7 @@ import {
   PAID_MAX_AUDIT_PAGES,
 } from "@/shared/audit-limits";
 
-export type AuditLimitTier = "free" | "paid" | "self_hosted";
+export type AuditLimitTier = "free" | "paid" | "placeholder" | "self_hosted";
 
 // The crawler runs on our Workers compute and isn't credit-metered, so these
 // per-tier bounds are the abuse control: free accounts cost nothing to create,
@@ -31,6 +31,16 @@ export const AUDIT_LIMITS: Record<
     maxPagesPerAudit: PAID_MAX_AUDIT_PAGES,
     maxCapacityUnits: 100_000,
     maxRunningAudits: Number.POSITIVE_INFINITY,
+  },
+  // Hosted mode on the placeholder ledger (no AUTUMN_SECRET_KEY): every
+  // invited organization reads as paid, but nobody has paid, and the crawl runs
+  // on one memory-capped service. Full page limits, one running audit per
+  // person and a smaller total, so one account cannot start several large
+  // crawls at once.
+  placeholder: {
+    maxPagesPerAudit: PAID_MAX_AUDIT_PAGES,
+    maxCapacityUnits: 20_000,
+    maxRunningAudits: 1,
   },
   self_hosted: {
     maxPagesPerAudit: PAID_MAX_AUDIT_PAGES,

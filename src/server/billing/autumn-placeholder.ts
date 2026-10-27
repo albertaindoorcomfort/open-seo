@@ -65,17 +65,25 @@ async function remainingToday(customerId: string): Promise<number> {
  * D1 (owner, 2026-10-27): while this ledger is active, sign-up is invite-only
  * (src/lib/auth.ts), so the ledger grants managed_service_access to every
  * invited organization and site audits run. The switch is
- * LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS: unset or "on" grants it (the D1
- * default), "off" (or "false", "0", "no") denies it again. Real billing
- * (AUTUMN_SECRET_KEY) never reads it.
+ * LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS: unset or empty grants it (the D1
+ * default), and so do "on", "true", "1" and "yes". Any other value denies it,
+ * so a typo such as "disabled" stops audits rather than leaving them on. Real
+ * billing (AUTUMN_SECRET_KEY) never reads it.
  */
 function placeholderGrantsManagedAccess(
   raw: unknown = Reflect.get(env, "LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS"),
 ): boolean {
-  return !(
-    typeof raw === "string" &&
-    ["off", "false", "0", "no"].includes(raw.trim().toLowerCase())
-  );
+  if (raw === undefined || raw === null) return true;
+  if (typeof raw !== "string") return false;
+  const value = raw.trim().toLowerCase();
+  if (value === "") return true;
+  if (["on", "true", "1", "yes"].includes(value)) return true;
+  if (!["off", "false", "0", "no"].includes(value)) {
+    console.warn(
+      "[billing] LUNAR_OPTIMIZE_PLACEHOLDER_MANAGED_ACCESS has an unknown value; audits stay off",
+    );
+  }
+  return false;
 }
 
 type CheckArgs = { customerId: string; featureId: string };

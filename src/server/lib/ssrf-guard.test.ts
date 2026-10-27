@@ -129,6 +129,28 @@ describe("ssrf guard", () => {
     ]);
   });
 
+  it("retries a failed DNS over HTTPS answer once before it refuses", async () => {
+    let failuresLeft = 1;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const type = new URL(input).searchParams.get("type");
+        if (type === "A" && failuresLeft-- > 0) {
+          return new Response("busy", { status: 503 });
+        }
+        return Response.json(
+          type === "A"
+            ? { Status: 0, Answer: [{ type: 1, data: PUBLIC_V4 }] }
+            : { Status: 0 },
+        );
+      }),
+    );
+
+    await expect(
+      assertPublicUrl("https://blip.example.com/"),
+    ).resolves.toBeInstanceOf(URL);
+  });
+
   it("checks each redirect hop before requesting it", async () => {
     const resolve = async (host: string) =>
       host === "intranet.example.com" ? ["10.0.0.5"] : [PUBLIC_V4];
