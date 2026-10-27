@@ -34,18 +34,10 @@ vi.mock("@/server/mcp/server", () => ({
   createOpenSeoMcpServer: (props?: unknown) => {
     selfHostedAuthMocks.createOpenSeoMcpServer(props);
     return new McpServer({
-      name: "OpenSEO MCP",
-      title: "OpenSEO",
+      name: "Lunar Optimize MCP",
+      title: "Lunar Optimize",
       version: "0.0.11",
       description: "SEO research tools for AI agents",
-      websiteUrl: "https://openseo.so",
-      icons: [
-        {
-          src: "https://openseo.so/android-chrome-512x512.png",
-          mimeType: "image/png",
-          sizes: ["512x512"],
-        },
-      ],
     });
   },
 }));

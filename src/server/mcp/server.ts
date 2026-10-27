@@ -6,6 +6,7 @@ import {
 import type { z } from "zod";
 import {
   createMcpToolContext,
+  MCP_AUTH_CONTEXT_PROP,
   type McpProps,
   type ToolContext,
 } from "@/server/mcp/context";
@@ -128,23 +129,18 @@ function registerOpenSeoTool<Input extends ToolSchema>(
 export function createOpenSeoMcpServer(authProps: McpProps) {
   const server = new McpServer(
     {
-      name: "OpenSEO MCP",
-      title: "OpenSEO",
+      name: "Lunar Optimize MCP",
+      title: "Lunar Optimize",
       version: "0.0.12",
       description:
         "SEO research tools for AI agents: keyword research and metrics, SERP and local SERP results, domain and backlink analysis, rank tracking, and Google Search Console performance.",
-      websiteUrl: "https://openseo.so",
-      icons: [
-        {
-          src: "https://openseo.so/android-chrome-512x512.png",
-          mimeType: "image/png",
-          sizes: ["512x512"],
-        },
-      ],
+      // This deployment's own origin. No icon: the bundled PNGs are still the
+      // upstream mark, and no Lunar Optimize raster mark ships yet.
+      websiteUrl: authProps[MCP_AUTH_CONTEXT_PROP].baseUrl,
     },
     {
       instructions:
-        "OpenSEO research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
+        "Lunar Optimize research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
     },
   );
 

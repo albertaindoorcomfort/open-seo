@@ -188,7 +188,7 @@ describe("OpenSEO OAuth provider configuration", () => {
     expect(mocks.options[0]?.resourceMetadata).toEqual({
       resource: "https://app.openseo.so/mcp",
       scopes_supported: ["mcp"],
-      resource_name: "OpenSEO MCP",
+      resource_name: "Lunar Optimize MCP",
     });
     expect(mocks.options[0]?.scopesSupported).toEqual([
       "offline_access",
