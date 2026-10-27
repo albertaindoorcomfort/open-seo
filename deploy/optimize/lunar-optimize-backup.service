@@ -1,0 +1,13 @@
+[Unit]
+Description=Lunar Optimize data backup to S3 (stops lunar-optimize for one tar of its data)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/lunar-optimize/backup.env
+
+[Service]
+Type=oneshot
+# Root: it stops and starts lunar-optimize and reads backup.env (mode 600). Settings come from that
+# file, which backup.sh reads as data. A private /var/tmp holds the archive until it is uploaded.
+ExecStart=/opt/lunar-optimize/bin/backup.sh
+PrivateTmp=true
+TimeoutStartSec=2h

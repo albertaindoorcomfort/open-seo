@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly Lunar Optimize data backup
+
+[Timer]
+# 09:30 UTC is 03:30 Mountain daylight time (02:30 standard): a quiet hour, clear of the 03:17 UTC cron.
+OnCalendar=*-*-* 09:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

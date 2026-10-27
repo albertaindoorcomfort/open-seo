@@ -24,8 +24,10 @@
 // the runtime resolves the name again when it connects. A name that answers
 // differently the second time (DNS rebinding) can still slip past this check.
 // The port rule keeps such a request off the box's app ports (Studio :3000
-// and the like); a network rule on the service (systemd IPAddressDeny for
-// private and link-local ranges) is the layer that closes the rest.
+// and the like). On the Studio box a systemd IPAddressDeny drop-in
+// (deploy/optimize/lunar-optimize.service.d-egress.conf) refuses private,
+// CGNAT and link-local ranges, including the metadata address, for every
+// socket the service opens. Loopback on ports 80 and 443 (nginx) remains.
 
 import { z } from "zod";
 import { AppError } from "@/server/lib/errors";

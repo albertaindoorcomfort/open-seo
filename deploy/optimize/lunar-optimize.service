@@ -7,20 +7,23 @@ Wants=network-online.target
 Type=simple
 User=ubuntu
 Group=ubuntu
-WorkingDirectory=/opt/lunar-optimize/app
-Environment=PATH=/opt/lunar-optimize/node/bin:/usr/local/bin:/usr/bin:/bin
+# The live release is whatever /opt/lunar-optimize/current points at (box-install.sh and rollback.sh
+# flip it while the unit is stopped). Data in /opt/lunar-optimize/data is shared by every release.
+WorkingDirectory=/opt/lunar-optimize/current/app
+Environment=PATH=/opt/lunar-optimize/current/node/bin:/usr/local/bin:/usr/bin:/bin
 Environment=HOME=/opt/lunar-optimize
 Environment=XDG_CONFIG_HOME=/opt/lunar-optimize/.config
 Environment=WRANGLER_SEND_METRICS=false
 Environment=CI=1
-ExecStartPre=/opt/lunar-optimize/bin/migrate.sh
-ExecStart=/opt/lunar-optimize/bin/run.sh
+ExecStartPre=/opt/lunar-optimize/current/bin/migrate.sh
+ExecStart=/opt/lunar-optimize/current/bin/run.sh
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=180
-# Hard memory cap: Optimize is the process that gets reclaimed, never Studio.
-MemoryHigh=512M
-MemoryMax=640M
+# Hard memory cap: Optimize is the process that gets reclaimed, never Studio. 512M stalled the service
+# (2026-10-21); the box's memory.conf drop-in holds the same 800M/900M.
+MemoryHigh=800M
+MemoryMax=900M
 MemorySwapMax=0
 TasksMax=256
 NoNewPrivileges=true
