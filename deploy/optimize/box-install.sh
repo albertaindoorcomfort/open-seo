@@ -60,6 +60,7 @@ umask 077
 if grep -q '^DATAFORSEO_API_KEY=' "$env_file"; then echo "DataForSEO: key present (live data, 2 USD/day ceiling)"; else echo "DataForSEO: no key (sample mode)"; fi
 unset dfs old_secret
 echo "app.env names: $(cut -d= -f1 "$env_file" | tr '\n' ' ')"
+bash "$rel/install-timers.sh"  # P0-2: cron timers and CRON_TRIGGER_SECRET (kept across installs); needs the final app.env, runs before the service starts
 
 # 5. Service with the hard memory cap.
 sudo install -m 644 "$rel/lunar-optimize.service" /etc/systemd/system/lunar-optimize.service

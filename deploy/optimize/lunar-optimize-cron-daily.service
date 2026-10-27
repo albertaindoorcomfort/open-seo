@@ -1,0 +1,17 @@
+[Unit]
+Description=Lunar Optimize daily tick: OAuth KV purge (POST /internal/cron)
+After=lunar-optimize.service
+Requisite=lunar-optimize.service
+
+[Service]
+Type=oneshot
+# Root-only (mode 600). Holds CRON_TRIGGER_SECRET, the same value as in /opt/lunar-optimize/app.env.
+EnvironmentFile=/etc/lunar-optimize/cron.env
+# Must be one of the crons in wrangler.jsonc (src/server/cron-trigger.test.ts checks this line).
+ExecStart=/opt/lunar-optimize/bin/cron-tick.sh "17 3 * * *"
+# Same user as the app: it owns app.env, which holds the same secret, so a separate user adds nothing.
+User=ubuntu
+Group=ubuntu
+NoNewPrivileges=yes
+PrivateTmp=yes
+TimeoutStartSec=6min
