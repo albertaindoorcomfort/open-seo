@@ -10,6 +10,7 @@ import {
   Ga4ConnectionRepository,
   type Ga4Connection,
 } from "@/server/features/ga4/repositories/Ga4ConnectionRepository";
+import { BRAND } from "@/shared/brand";
 
 async function getConnection(projectId: string): Promise<Ga4Connection | null> {
   return Ga4ConnectionRepository.getByProjectId(projectId);
@@ -104,7 +105,7 @@ async function setProperty(input: {
   if (!grants.some((grant) => grant.accountId === input.accountId)) {
     throw new AppError(
       "NOT_FOUND",
-      "That Google account isn't connected to your OpenSEO account.",
+      `That Google account isn't connected to your ${BRAND.name} account.`,
     );
   }
 

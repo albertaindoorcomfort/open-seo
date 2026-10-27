@@ -8,6 +8,7 @@ import { type ToolContext } from "@/server/mcp/context";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import { optionalMetaOutputSchema } from "@/server/mcp/output-schemas";
 import { z } from "zod";
+import { BRAND } from "@/shared/brand";
 
 async function checkBalance(featureId: string, customerId: string) {
   try {
@@ -22,8 +23,7 @@ export const whoamiTool = {
   name: "whoami",
   config: {
     title: "Who am I",
-    description:
-      "Confirms the connected OpenSEO account, server mode, token scopes, and current credit balance when the user asks to check their account or connection. Uses no credits — does not call DataForSEO.",
+    description: `Confirms the connected ${BRAND.name} account, server mode, token scopes, and current credit balance when the user asks to check their account or connection. Uses no credits — does not call DataForSEO.`,
     inputSchema: {} as Record<string, never>,
     outputSchema: z.looseObject({
       userEmail: z.string(),

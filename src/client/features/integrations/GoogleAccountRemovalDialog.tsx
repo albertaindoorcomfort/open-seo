@@ -5,6 +5,7 @@ import {
   getGoogleAccountRemovalImpact,
   removeGoogleAccount,
 } from "@/serverFunctions/googleAccounts";
+import { BRAND } from "@/shared/brand";
 
 export function GoogleAccountRemovalDialog({
   provider,
@@ -78,8 +79,8 @@ export function GoogleAccountRemovalDialog({
         </h3>
         <p className="break-all text-sm font-medium">{label}</p>
         <p className="text-sm text-base-content/70">
-          This removes the account’s {name} connection from OpenSEO. You can
-          reconnect it anytime.
+          This removes the account’s {name} connection from {BRAND.name}. You
+          can reconnect it anytime.
         </p>
         {impact.isPending ? (
           <p role="status" className="text-sm text-base-content/60">

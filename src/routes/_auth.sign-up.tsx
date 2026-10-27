@@ -21,6 +21,7 @@ import {
   HOSTED_PASSWORD_MIN_LENGTH,
 } from "@/lib/auth-options";
 import { z } from "zod";
+import { BRAND } from "@/shared/brand";
 
 const signUpSchema = z
   .object({
@@ -87,7 +88,7 @@ function SignUpPage() {
           redirect_to: redirectTo,
         });
         const resolvedName =
-          value.name.trim() || email.split("@")[0] || "OpenSEO User";
+          value.name.trim() || email.split("@")[0] || `${BRAND.name} User`;
         const verificationCallbackURL = new URL(
           "/verify-email",
           window.location.origin,

@@ -5,9 +5,9 @@ import {
   isHostedServerAuthMode,
 } from "@/server/lib/runtime-env";
 import { requireProjectContext } from "@/serverFunctions/middleware";
+import { BRAND } from "@/shared/brand";
 
-const OPENROUTER_KEY_MISSING_MESSAGE =
-  "OPENROUTER_API_KEY is not set for this deployment yet. Add it to your environment, restart OpenSEO, then confirm here.";
+const OPENROUTER_KEY_MISSING_MESSAGE = `OPENROUTER_API_KEY is not set for this deployment yet. Add it to your environment, restart ${BRAND.name}, then confirm here.`;
 
 const projectScopedSchema = z.object({ projectId: z.string().min(1) });
 

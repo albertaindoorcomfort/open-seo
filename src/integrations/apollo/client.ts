@@ -10,6 +10,7 @@ import {
   isOpenSeoApolloTool,
   OPENSEO_APOLLO_TOOLS,
 } from "@/integrations/apollo/catalog";
+import { BRAND } from "@/shared/brand";
 
 // The Apollo side of an OpenSEO call. Apollo authorizes the call, reserves
 // budget and writes the audit event; this client only reaches OpenSEO over its
@@ -102,7 +103,7 @@ function normalizeToolResult(
     evidence: [
       {
         kind: "observation",
-        claim: `OpenSEO ${mcpTool} returned data`,
+        claim: `${BRAND.name} ${mcpTool} returned data`,
         sourceRef: sourceRef ?? `openseo:${mcpTool}`,
       },
     ],
