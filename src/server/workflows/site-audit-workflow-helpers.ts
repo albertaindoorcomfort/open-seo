@@ -4,6 +4,7 @@ import type {
 } from "@/server/lib/audit/types";
 import { sha256Hex } from "@/server/lib/audit/ids";
 import { normalizeUrl } from "@/server/lib/audit/url-utils";
+import { assertPublicUrl } from "@/server/lib/ssrf-guard";
 
 const CRAWL_USER_AGENT = "OpenSEO-Audit/1.0";
 const MAX_HTML_BYTES = 1024 * 1024;
@@ -60,9 +61,14 @@ export async function crawlPage(
   crawlDepth: number | null,
   inSitemap: boolean,
 ): Promise<CrawledPageResult> {
-  const startTime = Date.now();
+  let startTime = Date.now();
 
   try {
+    // SSRF guard: the URL and its DNS answers are checked before the request
+    // (a refused URL throws and is recorded as an error row below). The timer
+    // restarts after it so a DNS lookup never counts as page response time.
+    await assertPublicUrl(url);
+    startTime = Date.now();
     // Manual redirect handling: each hop is recorded as its own page row and
     // its target is enqueued by the frontier, so redirect chains and loops are
     // detectable from the recorded rows. Trailing-slash redirects (/docs ->

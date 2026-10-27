@@ -3,6 +3,7 @@
  */
 import robotsParser from "robots-parser";
 import { XMLParser } from "fast-xml-parser";
+import { guardedFetch } from "@/server/lib/ssrf-guard";
 import { isSameOrigin, normalizeUrl } from "./url-utils";
 
 const SITEMAP_FETCH_TIMEOUT_MS = 15_000;
@@ -21,6 +22,9 @@ const SITEMAP_RETRIES = 1;
 // shards are skipped whole — truncated XML would not parse anyway, and real
 // generators shard far below this.
 const MAX_SITEMAP_BYTES = 10 * 1024 * 1024;
+// robots.txt and sitemaps redirect (http -> https, apex -> www); each hop is
+// checked by the SSRF guard before it is requested.
+const MAX_DISCOVERY_REDIRECTS = 5;
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -39,10 +43,14 @@ export interface RobotsResult {
  */
 async function fetchRobotsTxtText(origin: string): Promise<string | null> {
   try {
-    const response = await fetch(`${origin}/robots.txt`, {
-      headers: { "User-Agent": "OpenSEO-Audit/1.0" },
-      signal: AbortSignal.timeout(10_000),
-    });
+    const { response } = await guardedFetch(
+      `${origin}/robots.txt`,
+      {
+        headers: { "User-Agent": "OpenSEO-Audit/1.0" },
+        signal: AbortSignal.timeout(10_000),
+      },
+      { maxRedirects: MAX_DISCOVERY_REDIRECTS },
+    );
 
     if (!response.ok) return null;
     return (await response.text()).slice(0, MAX_ROBOTS_TXT_BYTES);
@@ -172,12 +180,16 @@ async function fetchSitemapDocumentWithRetry(sitemapUrl: string): Promise<{
 
   for (let attempt = 0; attempt <= SITEMAP_RETRIES; attempt++) {
     try {
-      const response = await fetch(normalizedSitemapUrl, {
-        headers: { "User-Agent": "OpenSEO-Audit/1.0" },
-        signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS),
-      });
+      const { response, url: answeredUrl } = await guardedFetch(
+        normalizedSitemapUrl,
+        {
+          headers: { "User-Agent": "OpenSEO-Audit/1.0" },
+          signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS),
+        },
+        { maxRedirects: MAX_DISCOVERY_REDIRECTS },
+      );
 
-      const finalUrl = normalizeUrl(response.url, normalizedSitemapUrl);
+      const finalUrl = normalizeUrl(answeredUrl, normalizedSitemapUrl);
       if (!finalUrl || !isSameOrigin(finalUrl, normalizedSitemapUrl)) {
         return { nestedSitemaps: [], pageUrls: [], timedOut: false };
       }
