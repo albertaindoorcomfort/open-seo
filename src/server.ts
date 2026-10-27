@@ -20,6 +20,10 @@ import { MCP_ROUTE } from "@/server/mcp/context";
 import { handleSelfHostedOpenSeoMcpRequest } from "@/server/mcp/transport";
 import { withPgClient } from "@/db";
 import {
+  TENANT_LINK_PATH,
+  handleTenantLinkRequest,
+} from "@/server/features/tenant-link/tenant-link-endpoint";
+import {
   AUTUMN_WEBHOOK_PATH,
   handleAutumnWebhookRequest,
 } from "@/server/billing/autumn-webhook";
@@ -153,6 +157,11 @@ function handleFetch(
 
   if (pathname.startsWith("/agents/")) {
     return routeChatAgents(publicRequest, env);
+  }
+
+  // Platform machine principal (Mission Control); its own Bearer secret.
+  if (pathname === TENANT_LINK_PATH) {
+    return handleTenantLinkRequest(publicRequest, env);
   }
 
   if (isHostedAuthMode(authMode)) {
