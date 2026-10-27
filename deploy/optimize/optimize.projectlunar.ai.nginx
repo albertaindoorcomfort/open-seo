@@ -23,6 +23,22 @@ server {
         proxy_read_timeout 300s;
     }
 
+    # P0-2, scheduled work. Only the box's own timers trigger it, on 127.0.0.1:3601; /health/* stays public.
+    # The app and wrangler read paths the WHATWG way ("\" is "/", "#" starts a fragment) and nginx does not,
+    # so /assets/..\internal\cron would slip past the prefix blocks below. Browsers never put either raw in
+    # a path; the query string is left alone.
+    if ($request_uri ~ "^[^?]*[\\\\#]") {
+        return 400;
+    }
+    # The app's own trigger (Bearer secret) and wrangler dev's unauthenticated /cdn-cgi/handler/scheduled.
+    # No Cloudflare edge fronts this box, so nothing legitimate uses /cdn-cgi/ here.
+    location ^~ /internal/ {
+        return 404;
+    }
+    location ^~ /cdn-cgi/ {
+        return 404;
+    }
+
     # Hashed build assets. add_header here replaces the server-level set, so it is repeated.
     location ^~ /assets/ {
         proxy_pass http://127.0.0.1:3601;

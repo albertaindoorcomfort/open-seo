@@ -1,0 +1,11 @@
+[Unit]
+Description=Lunar Optimize daily at 03:17 UTC (cron "17 3 * * *"; Workers crons run in UTC)
+
+[Timer]
+OnCalendar=*-*-* 03:17:00 UTC
+AccuracySec=1min
+Persistent=true
+Unit=lunar-optimize-cron-daily.service
+
+[Install]
+WantedBy=timers.target
