@@ -15,16 +15,23 @@ describe("normalizeAndValidateStartUrl", () => {
   });
 
   it("adds https when protocol is missing and strips hash", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ Status: 0, Answer: [] }), {
-        status: 200,
-        headers: { "content-type": "application/dns-json" },
-      }),
-    );
+    vi.mocked(fetch).mockImplementation(() => Promise.resolve(dnsOk()));
 
     await expect(
       normalizeAndValidateStartUrl("example.com/path#section"),
     ).resolves.toBe("https://example.com/path");
+  });
+
+  it("refuses a start URL whose host resolves to 127.0.0.1", async () => {
+    const resolve = vi.fn(async () => ["127.0.0.1"]);
+
+    await expect(
+      normalizeAndValidateStartUrl("loopback.example.com", resolve),
+    ).rejects.toMatchObject({
+      code: "CRAWL_TARGET_BLOCKED",
+    } satisfies Partial<AppError>);
+    expect(resolve).toHaveBeenCalledWith("loopback.example.com");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("blocks localhost-like targets", async () => {
@@ -52,11 +59,12 @@ describe("normalizeAndValidateStartUrl", () => {
   });
 });
 
+// A public answer: the guard refuses a name that resolves to nothing.
 const dnsOk = () =>
-  new Response(JSON.stringify({ Status: 0, Answer: [] }), {
-    status: 200,
-    headers: { "content-type": "application/dns-json" },
-  });
+  new Response(
+    JSON.stringify({ Status: 0, Answer: [{ type: 1, data: "93.184.215.14" }] }),
+    { status: 200, headers: { "content-type": "application/dns-json" } },
+  );
 const redirect = (location: string) =>
   new Response(null, { status: 301, headers: { location } });
 

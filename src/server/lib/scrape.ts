@@ -6,6 +6,7 @@
 // same interface later.
 
 import { normalizeAndValidateStartUrl } from "@/server/lib/audit/url-policy";
+import { guardedFetch } from "@/server/lib/ssrf-guard";
 
 export const MAX_PAGES = 5;
 const PER_PAGE_CHAR_LIMIT = 4000;
@@ -49,40 +50,20 @@ async function readBoundedText(response: Response): Promise<string | null> {
 
 async function fetchText(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url, {
-      headers: { "user-agent": USER_AGENT, accept: "text/html,*/*" },
-      // Manual redirects so we can re-validate each hop against the SSRF guard;
-      // redirect:"follow" would let a 30x to an internal host bypass it.
-      redirect: "manual",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location) return null;
-      let redirectUrl: string;
-      try {
-        // Re-validates host, blocks private IPs, and does DoH DNS resolution.
-        redirectUrl = await normalizeAndValidateStartUrl(
-          new URL(location, url).toString(),
-        );
-      } catch {
-        return null; // blocked or invalid redirect destination
-      }
-      // One hop only; fetch the validated destination without following further.
-      const redirected = await fetch(redirectUrl, {
+    // The SSRF guard checks the URL and the one redirect hop it follows
+    // (host, private IPs, DNS answers) before each request.
+    const { response } = await guardedFetch(
+      url,
+      {
         headers: { "user-agent": USER_AGENT, accept: "text/html,*/*" },
-        redirect: "manual",
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-      if (!redirected.ok) return null;
-      return await readBoundedText(redirected);
-    }
-
+      },
+      { maxRedirects: 1 },
+    );
     if (!response.ok) return null;
     return await readBoundedText(response);
   } catch {
-    return null;
+    return null; // blocked, invalid redirect destination or unreachable
   }
 }
 
