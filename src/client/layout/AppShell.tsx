@@ -59,8 +59,8 @@ export function AuthenticatedAppLayout({
   });
   const seoApiKeyStatusError =
     shouldCheckSeoApiKeyStatus && seoApiKeyStatusQuery.isError;
-  // Sample mode is labelled, never a blocker: no key for the deployment, or a
-  // response this browser received was answered with sample data.
+  // Sample mode is labelled, never a blocker: no key for the deployment, or
+  // data on screen in this browser came from a sample answer.
   const responseSampleReason = useResponseSampleReason();
   const sampleReason = shouldCheckSeoApiKeyStatus
     ? (seoApiKeyStatusQuery.data?.reason ?? responseSampleReason)
