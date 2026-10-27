@@ -1,0 +1,30 @@
+[Unit]
+Description=Lunar Optimize (open-seo worker under local workerd) for optimize.projectlunar.ai
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/lunar-optimize/app
+Environment=PATH=/opt/lunar-optimize/node/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/opt/lunar-optimize
+Environment=XDG_CONFIG_HOME=/opt/lunar-optimize/.config
+Environment=WRANGLER_SEND_METRICS=false
+Environment=CI=1
+ExecStartPre=/opt/lunar-optimize/bin/migrate.sh
+ExecStart=/opt/lunar-optimize/bin/run.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=180
+# Hard memory cap: Optimize is the process that gets reclaimed, never Studio.
+MemoryHigh=512M
+MemoryMax=640M
+MemorySwapMax=0
+TasksMax=256
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
