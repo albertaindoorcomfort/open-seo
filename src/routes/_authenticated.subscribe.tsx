@@ -1,4 +1,9 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  Link,
+  createFileRoute,
+  notFound,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useCustomer } from "autumn-js/react";
 import { useEffect, useState } from "react";
 import { ArrowRight, Settings, User } from "lucide-react";
@@ -43,6 +48,13 @@ export const Route = createFileRoute("/_authenticated/subscribe")({
         : undefined,
     checkout: search.checkout === "success" ? "success" : undefined,
   }),
+  // Plans, checkout and the placeholder allowance are hosted billing. A
+  // self-hosted deployment meters nothing, so there is nothing to show here.
+  beforeLoad: () => {
+    if (!isHostedClientAuthMode()) {
+      throw notFound();
+    }
+  },
   component: SubscribePage,
 });
 

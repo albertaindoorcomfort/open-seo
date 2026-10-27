@@ -15,7 +15,10 @@ import {
   AUTUMN_SEO_DATA_CREDITS_PER_USD,
   AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
 } from "@/shared/billing";
-import { getOptionalEnvValue } from "@/server/lib/runtime-env";
+import {
+  getOptionalEnvValue,
+  isHostedServerAuthMode,
+} from "@/server/lib/runtime-env";
 
 const DEFAULT_DAILY_USD = 2;
 
@@ -26,6 +29,13 @@ export async function usesPlaceholderBilling(): Promise<boolean> {
   } catch {
     return true;
   }
+}
+
+/** True when this ledger's daily allowance is what users actually live under:
+ *  hosted mode with no Autumn key. Self-hosted runs no billing gates at all,
+ *  so it has no allowance to show or to explain. */
+export async function isPlaceholderBillingActive(): Promise<boolean> {
+  return (await isHostedServerAuthMode()) && (await usesPlaceholderBilling());
 }
 
 export function placeholderDailyCredits(

@@ -5,7 +5,6 @@ import {
   AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
 } from "@/shared/billing";
 import { AppError } from "@/server/lib/errors";
-import { usesPlaceholderBilling } from "@/server/billing/autumn-placeholder";
 import { getPlaceholderBillingSummary } from "@/server/billing/placeholder-summary";
 import {
   getRequiredEnvValue,
@@ -55,16 +54,16 @@ export type BillingUsageEvent = {
   properties: Record<string, z.infer<typeof billingUsagePropertySchema>>;
 };
 
-// The billing pages ask this first. While AUTUMN_SECRET_KEY is unset, billing
-// is the placeholder ledger: there is no Autumn customer to load (the Autumn
-// proxy answers 503), so the pages show the ledger's real allowance instead.
+// The billing pages ask this first. While a hosted deployment has no
+// AUTUMN_SECRET_KEY, billing is the placeholder ledger: there is no Autumn
+// customer to load (the Autumn proxy answers 503), so the pages show the
+// ledger's real allowance instead.
 export const getBillingMode = createServerFn({ method: "GET" })
   .middleware(requireAuthenticatedContext)
   .handler(async ({ context }) => ({
-    // null when Autumn serves billing.
-    placeholder: (await usesPlaceholderBilling())
-      ? await getPlaceholderBillingSummary(context.organizationId)
-      : null,
+    // null when Autumn serves billing, and in self-hosted mode, which enforces
+    // no allowance.
+    placeholder: await getPlaceholderBillingSummary(context.organizationId),
   }));
 
 export const getBillingUsageEvents = createServerFn({ method: "POST" })

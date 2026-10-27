@@ -5,6 +5,7 @@ import {
   autumnSeoDataCreditsToUsd,
 } from "@/shared/billing";
 import {
+  isPlaceholderBillingActive,
   placeholderAutumn,
   placeholderDailyCredits,
 } from "@/server/billing/autumn-placeholder";
@@ -18,12 +19,15 @@ export type PlaceholderBillingSummary = {
   siteAudits: boolean;
 };
 
-/** What the placeholder ledger grants an organization today. Read through the
- *  ledger's own checks, the ones the server gates call, so the billing pages
- *  cannot promise more than the gates allow. */
+/** What the placeholder ledger grants an organization today, or null when the
+ *  ledger does not serve billing (Autumn is configured, or the deployment is
+ *  self-hosted, where no allowance is enforced). Read through the ledger's own
+ *  checks, the ones the server gates call, so the billing pages cannot promise
+ *  more than the gates allow. */
 export async function getPlaceholderBillingSummary(
   customerId: string,
-): Promise<PlaceholderBillingSummary> {
+): Promise<PlaceholderBillingSummary | null> {
+  if (!(await isPlaceholderBillingActive())) return null;
   const [credits, paidPlan, managedAccess] = await Promise.all([
     placeholderAutumn.customers.getOrCreate({ customerId }),
     placeholderAutumn.check({
