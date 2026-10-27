@@ -6,8 +6,8 @@ import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { captureClientEvent } from "@/client/lib/posthog";
 import {
   computeNextStep,
+  getDashboardSteps,
   isStepDone,
-  STEP_ORDER,
 } from "@/client/features/dashboard/dashboardSteps";
 import {
   AuditHealthCard,
@@ -110,13 +110,14 @@ function OnboardingChecklist({
   const nextStep = computeNextStep(activation);
   if (!nextStep) return null;
 
-  const index = viewedIndex ?? STEP_ORDER.indexOf(nextStep);
-  const step = STEP_ORDER[index];
+  const steps = getDashboardSteps(activation);
+  const index = viewedIndex ?? steps.indexOf(nextStep);
+  const step = steps[index];
   const copy = HERO_COPY[step];
   const done = isStepDone(activation, step);
 
   const page = (delta: number) =>
-    setViewedIndex(Math.min(Math.max(index + delta, 0), STEP_ORDER.length - 1));
+    setViewedIndex(Math.min(Math.max(index + delta, 0), steps.length - 1));
 
   const onSubmitDomain = () => {
     const domain = normalizeDomainInput(domainInput);
@@ -156,15 +157,15 @@ function OnboardingChecklist({
             <ChevronLeft className="size-4" />
           </button>
           <span className="text-xs tabular-nums text-base-content/60">
-            {index + 1} / {STEP_ORDER.length}
+            {index + 1} / {steps.length}
           </span>
           <button
             type="button"
             className={`btn btn-ghost btn-xs btn-square ${
-              index === STEP_ORDER.length - 1 ? "invisible" : ""
+              index === steps.length - 1 ? "invisible" : ""
             }`}
             aria-label="Next step"
-            disabled={index === STEP_ORDER.length - 1}
+            disabled={index === steps.length - 1}
             onClick={() => page(1)}
           >
             <ChevronRight className="size-4" />

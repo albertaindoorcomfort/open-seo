@@ -4,6 +4,7 @@ import { AuditRepository } from "@/server/features/audit/repositories/AuditRepos
 import { getIssueTypePageCountsForAudit } from "@/server/features/audit/repositories/auditSummaryQueries";
 import { BacklinkSnapshotRepository } from "@/server/features/dashboard/repositories/BacklinkSnapshotRepository";
 import { Ga4ConnectionRepository } from "@/server/features/ga4/repositories/Ga4ConnectionRepository";
+import { hasSelfHostedGoogleOAuthConfig } from "@/server/features/google/oauth-config";
 import { GscConnectionRepository } from "@/server/features/gsc/repositories/GscConnectionRepository";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { getLatestResults } from "@/server/features/rank-tracking/services/rankTrackingResults";
@@ -27,7 +28,13 @@ export type DashboardActivation = {
     propertyDisplayName: string | null;
     cardDismissedAt: string | null;
   };
-  gsc: { connected: boolean; siteUrl: string | null };
+  gsc: {
+    connected: boolean;
+    siteUrl: string | null;
+    // Connecting needs the Google client ids; without them the checklist
+    // leaves the Search Console step out.
+    googleOAuthConfigured: boolean;
+  };
   mcp: {
     authorizedAt: string | null;
     firstToolCallAt: string | null;
@@ -83,12 +90,14 @@ async function getActivation(input: {
   organizationId: string;
   domain: string | null;
 }): Promise<DashboardActivation> {
-  const [ga4, gsc, orgActivation, projectActivation] = await Promise.all([
-    Ga4ConnectionRepository.getByProjectId(input.projectId),
-    GscConnectionRepository.getByProjectId(input.projectId),
-    ActivationRepository.getOrganizationActivation(input.organizationId),
-    ActivationRepository.getProjectActivation(input.projectId),
-  ]);
+  const [ga4, gsc, orgActivation, projectActivation, googleOAuthConfigured] =
+    await Promise.all([
+      Ga4ConnectionRepository.getByProjectId(input.projectId),
+      GscConnectionRepository.getByProjectId(input.projectId),
+      ActivationRepository.getOrganizationActivation(input.organizationId),
+      ActivationRepository.getProjectActivation(input.projectId),
+      hasSelfHostedGoogleOAuthConfig(),
+    ]);
 
   return {
     domain: input.domain,
@@ -97,7 +106,11 @@ async function getActivation(input: {
       propertyDisplayName: ga4?.propertyDisplayName ?? null,
       cardDismissedAt: projectActivation?.ga4CardDismissedAt ?? null,
     },
-    gsc: { connected: gsc !== null, siteUrl: gsc?.siteUrl ?? null },
+    gsc: {
+      connected: gsc !== null,
+      siteUrl: gsc?.siteUrl ?? null,
+      googleOAuthConfigured,
+    },
     mcp: {
       authorizedAt: orgActivation?.firstMcpAuthorizedAt ?? null,
       firstToolCallAt: orgActivation?.firstMcpToolCallAt ?? null,

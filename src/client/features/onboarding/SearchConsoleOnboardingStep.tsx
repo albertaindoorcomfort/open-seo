@@ -15,6 +15,7 @@ import { ProjectMarketFields } from "@/client/features/projects/ProjectMarketFie
 import type { ProjectMarket } from "@/client/features/projects/types";
 import {
   getGscConnection,
+  getGscGrantStatus,
   listGscSites,
   setGscSite,
 } from "@/serverFunctions/gsc";
@@ -34,20 +35,33 @@ export function SearchConsoleOnboardingStep() {
     queryFn: () => getProjects(),
   });
   const project = projectsQuery.data?.[0];
+  // Account-level, so it answers before the project loads (same cache as the
+  // re-engagement nudge). Only ask the question once connecting is known to
+  // work: without the Google client ids the step can only say why it is not
+  // available.
+  const grantStatusQuery = useQuery({
+    queryKey: GRANT_STATUS_KEY,
+    queryFn: () => getGscGrantStatus(),
+  });
+  const canConnect = grantStatusQuery.data?.googleOAuthConfigured === true;
 
   return (
     <div className="space-y-8">
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">
-          Connect with Google Search Console now?
+          {canConnect
+            ? "Connect with Google Search Console now?"
+            : "Google Search Console"}
         </h2>
 
         {project ? <GscConnect projectId={project.id} /> : <Checking />}
 
-        <p className="hidden sm:block text-xs leading-relaxed text-base-content/55">
-          For now, Search Console data flows through the Lunar Optimize MCP.
-          We're building it into the Lunar Optimize app soon too.
-        </p>
+        {canConnect ? (
+          <p className="hidden sm:block text-xs leading-relaxed text-base-content/55">
+            For now, Search Console data flows through the Lunar Optimize MCP.
+            We're building it into the Lunar Optimize app soon too.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-4">
