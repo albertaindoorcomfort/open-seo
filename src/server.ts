@@ -26,6 +26,8 @@ import {
 import { maybeSendSelfHostHeartbeat } from "@/server/lib/self-host-telemetry";
 import { handleGdprStorageErasure } from "@/server/gdpr/storage-erasure";
 import { GDPR_STORAGE_ERASURE_PATH } from "@/shared/gdpr-erasure";
+import { HEALTH_PREFIX, handleHealthRequest } from "@/server/health";
+import { CRON_TRIGGER_PATH, handleCronTrigger } from "@/server/cron-trigger";
 
 const appFetch = createStartHandler(defaultStreamHandler);
 const openSeoOAuthProvider = createOpenSeoOAuthProvider(appFetch);
@@ -151,6 +153,17 @@ function handleFetch(
     return handleGdprStorageErasure(publicRequest, env);
   }
 
+  // Operator routes, ahead of auth and the app: health probes, and the
+  // loopback cron trigger for runtimes that never fire `scheduled`.
+  if (pathname.startsWith(HEALTH_PREFIX)) {
+    return handleHealthRequest(publicRequest, env);
+  }
+  if (pathname === CRON_TRIGGER_PATH) {
+    return handleCronTrigger(publicRequest, env, (cron) =>
+      runScheduled(cron, env),
+    );
+  }
+
   if (pathname.startsWith("/agents/")) {
     return routeChatAgents(publicRequest, env);
   }
@@ -190,6 +203,42 @@ export { AuditScratchpad } from "./server/features/audit/AuditScratchpad";
 // Daily OAuth KV garbage collection; must match a trigger in wrangler.jsonc.
 const MCP_OAUTH_PURGE_CRON = "17 3 * * *";
 
+// Runs one cron tick. Called by the Workers runtime and, where crons never
+// fire (wrangler dev on the box, vite preview in Docker), by POST /internal/cron.
+async function runScheduled(cron: string, env: Env): Promise<void> {
+  if (cron === MCP_OAUTH_PURGE_CRON) {
+    // Only hosted mode runs the OAuth provider (and has OAUTH_KV bound).
+    if (isHostedAuthMode(getAuthMode(env.AUTH_MODE))) {
+      const result = await openSeoOAuthProvider.purgeExpiredData(
+        env as OpenSeoOAuthEnv,
+      );
+      console.log("[mcp-oauth] purged expired OAuth data", result);
+      if (!result.done) {
+        // The sweep only advances past live records via deletions; a
+        // persistent incomplete scan means the keyspace outgrew the batch.
+        console.warn("[mcp-oauth] purge did not cover the full keyspace");
+      }
+    }
+    return;
+  }
+
+  // Watchdog first: reconcile audits stuck in "running" whose workflow died
+  // without reaching mark-failed (OOM/CPU kills, expired instances). Runs
+  // before the rank loop so a slow tick can't delay or starve it. Its
+  // failure is held until after the rank checks so it can't suppress them,
+  // then rethrown so the invocation still reports as failed.
+  let watchdogError: unknown;
+  try {
+    await withPgClient(() => reconcileStaleAudits());
+  } catch (err) {
+    watchdogError = err;
+    console.error("[cron] Stale-audit reconcile failed:", err);
+  }
+  // Scope a per-request Postgres client for the cron run (no-op in D1 mode).
+  await withPgClient(() => runScheduledRankChecks(env));
+  if (watchdogError) throw watchdogError;
+}
+
 export default {
   fetch,
   async scheduled(
@@ -197,36 +246,6 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) {
-    if (controller.cron === MCP_OAUTH_PURGE_CRON) {
-      // Only hosted mode runs the OAuth provider (and has OAUTH_KV bound).
-      if (isHostedAuthMode(getAuthMode(env.AUTH_MODE))) {
-        const result = await openSeoOAuthProvider.purgeExpiredData(
-          env as OpenSeoOAuthEnv,
-        );
-        console.log("[mcp-oauth] purged expired OAuth data", result);
-        if (!result.done) {
-          // The sweep only advances past live records via deletions; a
-          // persistent incomplete scan means the keyspace outgrew the batch.
-          console.warn("[mcp-oauth] purge did not cover the full keyspace");
-        }
-      }
-      return;
-    }
-
-    // Watchdog first: reconcile audits stuck in "running" whose workflow died
-    // without reaching mark-failed (OOM/CPU kills, expired instances). Runs
-    // before the rank loop so a slow tick can't delay or starve it. Its
-    // failure is held until after the rank checks so it can't suppress them,
-    // then rethrown so the invocation still reports as failed.
-    let watchdogError: unknown;
-    try {
-      await withPgClient(() => reconcileStaleAudits());
-    } catch (err) {
-      watchdogError = err;
-      console.error("[cron] Stale-audit reconcile failed:", err);
-    }
-    // Scope a per-request Postgres client for the cron run (no-op in D1 mode).
-    await withPgClient(() => runScheduledRankChecks(env));
-    if (watchdogError) throw watchdogError;
+    await runScheduled(controller.cron, env);
   },
 };
