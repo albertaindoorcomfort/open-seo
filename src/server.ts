@@ -2,6 +2,7 @@ import {
   createStartHandler,
   defaultStreamHandler,
 } from "@tanstack/react-start/server";
+import { withContentSecurityPolicy } from "@/server/lib/contentSecurityPolicy";
 import { routeAgentRequest } from "agents";
 import { resolveUserContextFromHeaders } from "@/middleware/ensure-user/resolve";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
@@ -27,7 +28,12 @@ import { maybeSendSelfHostHeartbeat } from "@/server/lib/self-host-telemetry";
 import { handleGdprStorageErasure } from "@/server/gdpr/storage-erasure";
 import { GDPR_STORAGE_ERASURE_PATH } from "@/shared/gdpr-erasure";
 
-const appFetch = createStartHandler(defaultStreamHandler);
+// Every app document gets a Content-Security-Policy with a fresh script nonce
+// (contentSecurityPolicy.ts). Wrapping the handler rather than one call site
+// covers the OAuth-provider path too, which serves app documents through it.
+const appFetch = withContentSecurityPolicy(
+  createStartHandler(defaultStreamHandler),
+);
 const openSeoOAuthProvider = createOpenSeoOAuthProvider(appFetch);
 
 // Authorize an onboarding-chat connection in the Worker, before it reaches the
