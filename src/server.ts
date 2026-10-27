@@ -34,6 +34,7 @@ import {
 } from "@/integrations/apollo/module-bridge";
 import { createOpenSeoTransport } from "@/integrations/apollo/client";
 import { getEnvValueSync } from "@/server/lib/runtime-env";
+import { frameAncestorsPolicy } from "@/server/lib/frameAncestors";
 import { HEALTH_PREFIX, handleHealthRequest } from "@/server/health";
 import { CRON_TRIGGER_PATH, handleCronTrigger } from "@/server/cron-trigger";
 
@@ -51,7 +52,12 @@ const startHandler = createStartHandler(defaultStreamHandler);
 // route that sets its own stricter CSP keeps it (two CSP headers intersect, so
 // adding a second could only confuse things). Wrapping the handler rather than
 // one call site covers the OAuth-provider path too, which serves app documents
-// through this same function.
+// through this same function. A staff portal that shows the app inside its own
+// pages is listed by origin in OPEN_SEO_FRAME_ANCESTORS (frameAncestors.ts).
+const FRAME_ANCESTORS = frameAncestorsPolicy(
+  getEnvValueSync({}, "OPEN_SEO_FRAME_ANCESTORS"),
+);
+
 async function appFetch(request: Request): Promise<Response> {
   const response = await startHandler(request);
   const contentType = response.headers.get("content-type") ?? "";
@@ -62,7 +68,7 @@ async function appFetch(request: Request): Promise<Response> {
     return response;
   }
   const headers = new Headers(response.headers);
-  headers.set("Content-Security-Policy", "frame-ancestors 'self'");
+  headers.set("Content-Security-Policy", FRAME_ANCESTORS);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
