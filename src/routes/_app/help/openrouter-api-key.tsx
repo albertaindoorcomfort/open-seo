@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BRAND } from "@/shared/brand";
 
 const OPENROUTER_KEYS_URL = "https://openrouter.ai/settings/keys";
 
@@ -17,9 +16,9 @@ function OpenrouterApiKeyHelpPage() {
               Set up your OpenRouter API key
             </h1>
             <p className="text-sm text-base-content/70">
-              {BRAND.name} needs the <code>OPENROUTER_API_KEY</code> secret
-              before AI features like SAM, the in-app SEO agent, can run. It is
-              optional — everything else in {BRAND.name} works without it.
+              OpenSEO needs the <code>OPENROUTER_API_KEY</code> secret before AI
+              features like SAM, the in-app SEO agent, can run. It is optional —
+              everything else in OpenSEO works without it.
             </p>
           </div>
         </div>
@@ -65,7 +64,7 @@ function OpenrouterApiKeyHelpPage() {
                   </li>
                 </ul>
               </li>
-              <li>Restart {BRAND.name}.</li>
+              <li>Restart OpenSEO.</li>
             </ol>
           </div>
         </div>
@@ -79,7 +78,7 @@ function OpenrouterApiKeyHelpPage() {
               <li>
                 In Cloudflare, go to <code>Compute</code> -&gt;{" "}
                 <code>Workers &amp; Pages</code>
-                and open your {BRAND.name} Worker.
+                and open your OpenSEO Worker.
               </li>
               <li>
                 Open <code>Settings</code>.

@@ -18,15 +18,14 @@ import {
   getHostedTurnstileSecretKey,
   hasHostedTurnstileConfig,
 } from "@/lib/auth-turnstile";
-import { resolveSignInHostedOrganization } from "@/server/auth/default-hosted-organization";
-import { onInvitationAccepted } from "@/server/auth/invited-member";
-import { AuthRepository } from "@/server/auth/repositories/AuthRepository";
-import { captureDubReferralSignup } from "@/server/referrals/dub";
+import { getOrCreateDefaultHostedOrganization } from "@/server/auth/default-hosted-organization";
 import {
   sendHostedPasswordResetEmail,
   sendHostedVerificationEmail,
   upsertHostedSignupContact,
 } from "@/server/email/loops";
+import { usesPlaceholderBilling } from "@/server/billing/autumn-placeholder";
+import { isEmailAllowed } from "@/server/auth/signup-allowlist";
 
 const hostedBaseUrlSchema = z
   .string()
@@ -46,73 +45,12 @@ function createAuth() {
   const baseUrl = isHostedAuthMode(env.AUTH_MODE)
     ? getHostedBaseUrl()
     : "http://localhost";
-  const bypassEmail = Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true";
-  const baseAuthConfig = createBaseAuthConfig(
-    isHostedAuthMode(env.AUTH_MODE)
-      ? {
-          organization: {
-            // No sendInvitationEmail here on purpose: better-auth swallows a
-            // throw from that callback, so a failed send would still read as
-            // "sent" in the UI. The invite email is sent (and rate limited)
-            // by the sendTeamInvitation server function instead, which fails
-            // the call visibly. Side effect worth knowing: hitting the raw
-            // /api/auth/organization/invite-member endpoint creates a pending
-            // invitation but emails nobody.
-            organizationHooks: {
-              // The invite UI only offers "admin", but the endpoint accepts
-              // any role string; enforce server-side. This also keeps an
-              // owner from minting a second owner and leaving — the path
-              // that would re-mint a fresh org + free-plan grant at next
-              // sign-in.
-              beforeCreateInvitation: async ({ invitation }) => {
-                if (invitation.role !== "admin") {
-                  throw new APIError("BAD_REQUEST", {
-                    message: "Teammates can only be invited as admins.",
-                  });
-                }
-              },
-              beforeAcceptInvitation: async ({ invitation, user }) => {
-                const existing = await AuthRepository.getMembership(
-                  user.id,
-                  invitation.organizationId,
-                );
-                if (existing) {
-                  throw new APIError("BAD_REQUEST", {
-                    message: "You are already a member of this organization.",
-                  });
-                }
-              },
-              // The invite flow only ever mints "admin", but the raw
-              // update-member-role endpoint accepts any role string and the
-              // plugin lets an owner grant owner to another member. Owners
-              // control billing, so a second owner is a billing-escalation
-              // path (and, if the first owner then leaves, a fresh-org /
-              // free-grant loop at next sign-in). Ownership transfers stay a
-              // support action — reject owner here.
-              beforeUpdateMemberRole: async ({ newRole }) => {
-                if (
-                  newRole
-                    .split(",")
-                    .map((r) => r.trim())
-                    .includes("owner")
-                ) {
-                  throw new APIError("BAD_REQUEST", {
-                    message:
-                      "The owner role can't be granted from here. Contact support to transfer ownership.",
-                  });
-                }
-              },
-              afterAcceptInvitation: async ({ member: acceptedMember }) => {
-                await onInvitationAccepted({
-                  userId: acceptedMember.userId,
-                  organizationId: acceptedMember.organizationId,
-                });
-              },
-            },
-          },
-        }
-      : undefined,
-  );
+  // Without Loops there is no way to send mail, so verification is skipped
+  // (and switches on by itself once the Loops names are set).
+  const hasEmail = hasHostedAuthEmailConfig();
+  const bypassEmail =
+    Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true" || !hasEmail;
+  const baseAuthConfig = createBaseAuthConfig();
 
   // Turnstile captcha on signup — hosted only. Enforcement is driven by the
   // server-side secret alone so a client build/runtime site-key mismatch cannot
@@ -135,29 +73,6 @@ function createAuth() {
   const auth = betterAuth({
     baseURL: baseUrl,
     secret: getHostedSecret(),
-    logger: {
-      log: (level, message, ...args: unknown[]) => {
-        // The api-key plugin logs every verification failure at error level — a
-        // stale key or a throttled caller included. The /mcp handler already logs
-        // the response it returns at the right level (debug for 401, warn for 429),
-        // so drop the duplicate.
-        if (message.startsWith("Failed to validate API key")) return;
-        // "Failed to parse state" is user/browser behavior: a replayed OAuth
-        // callback URL (back button, restored tab), or a consent screen left
-        // open past the state's lifetime. The request already redirects the
-        // user to an error page; nothing here is on-call actionable.
-        const effectiveLevel =
-          level === "error" && message === "Failed to parse state"
-            ? "warn"
-            : level;
-        // Also drops Better Auth's ISO-timestamp prefix, which makes every log
-        // line fingerprint as its own error group in observability.
-        console[effectiveLevel === "debug" ? "log" : effectiveLevel](
-          `[better-auth] ${message}`,
-          ...args,
-        );
-      },
-    },
     ...baseAuthConfig,
     emailAndPassword: {
       ...baseAuthConfig.emailAndPassword,
@@ -165,6 +80,12 @@ function createAuth() {
       resetPasswordTokenExpiresIn: 60 * 60,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
+        if (!hasEmail) {
+          console.warn(
+            "Password reset email skipped: LOOPS_API_KEY is not set",
+          );
+          return;
+        }
         await sendHostedPasswordResetEmail({
           email: user.email,
           resetUrl: url,
@@ -184,14 +105,6 @@ function createAuth() {
           },
         },
     socialProviders: getSocialProviders(),
-    // Where OAuth redirect-flow failures land when Better Auth can't honor a
-    // per-flow errorCallbackURL (Google-side errors like a canceled consent
-    // screen, replayed callback URLs, sign-in failures). Without this the
-    // default /api/auth/error page 302s to `/?error=...` and the dashboard
-    // silently discards the code. Self-hosted never serves these flows (its
-    // Google OAuth endpoints are hand-rolled), so the placeholder baseUrl
-    // there is harmless.
-    onAPIError: { errorURL: `${baseUrl}/auth-error` },
     trustedOrigins: getTrustedOrigins(baseUrl),
     database,
     plugins: [
@@ -223,28 +136,39 @@ function createAuth() {
                 message: "Please sign up with a non-disposable email address.",
               });
             }
+            // Invite-only while billing is the placeholder ledger.
+            if (
+              isHostedAuthMode(env.AUTH_MODE) &&
+              (await usesPlaceholderBilling()) &&
+              !isEmailAllowed(
+                user.email,
+                Reflect.get(env, "LUNAR_OPTIMIZE_ALLOWED_EMAILS") as
+                  | string
+                  | undefined,
+              )
+            ) {
+              throw new APIError("FORBIDDEN", {
+                message: "Sign-up is by invitation only for now.",
+              });
+            }
+            // No mail provider: nothing can verify the address, so the
+            // account starts verified (the client route guards read this).
+            if (isHostedAuthMode(env.AUTH_MODE) && !hasEmail) {
+              return { data: { ...user, emailVerified: true } };
+            }
             return { data: user };
           },
-          after: async (user, ctx) => {
+          after: async (user) => {
             await syncHostedSignupContact(user);
-            if (isHostedAuthMode(env.AUTH_MODE)) {
-              await captureDubReferralSignup(user.id, ctx?.request);
-            }
           },
         },
       },
       session: {
         create: {
           before: async (session) => {
-            // Runs on every sign-in (each sign-in mints a session row).
-            // Resolution order: last-active org while still a member → most
-            // recently joined org → newly created default organization —
-            // except that a membership-less user with a pending invitation
-            // gets no organization minted (null active org) so accepting the invite
-            // leaves them in exactly the inviter's org. Inject Better Auth's
-            // createOrganization so the helper can stay reusable without
-            // importing auth.ts and creating a cycle.
-            const resolved = await resolveSignInHostedOrganization(
+            // Inject Better Auth's createOrganization here so the helper can
+            // stay reusable without importing auth.ts and creating a cycle.
+            const organizationId = await getOrCreateDefaultHostedOrganization(
               session.userId,
               (body) => auth.api.createOrganization({ body }),
             );
@@ -252,7 +176,7 @@ function createAuth() {
             return {
               data: {
                 ...session,
-                activeOrganizationId: resolved?.organizationId ?? null,
+                activeOrganizationId: organizationId,
               },
             };
           },
@@ -271,6 +195,10 @@ async function syncHostedSignupContact(user: {
   email: string;
   name?: string | null;
 }) {
+  if (!hasHostedAuthEmailConfig()) {
+    console.info("Loops contact sync skipped: LOOPS_API_KEY is not set");
+    return;
+  }
   try {
     await upsertHostedSignupContact({
       userId: user.id,
@@ -334,7 +262,8 @@ function getSocialProviders() {
   // (createBaseAuthConfig) with its own creds — so it must NOT require the
   // social-login config here, otherwise getAuth() construction would be coupled
   // to GSC creds rather than just BETTER_AUTH_SECRET.
-  if (!isHostedAuthMode(env.AUTH_MODE)) {
+  // Google sign-in is optional: with no Google ids, email and password only.
+  if (!isHostedAuthMode(env.AUTH_MODE) || !hasGoogleSocialConfig()) {
     return {};
   }
 
@@ -364,6 +293,12 @@ function getGoogleSocialProviderConfig() {
   };
 }
 
+export function hasGoogleSocialConfig() {
+  return Boolean(
+    env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim(),
+  );
+}
+
 function hasHostedAuthEmailConfig() {
   const loopsVars = [
     "LOOPS_API_KEY",
@@ -379,14 +314,10 @@ function hasHostedAuthEmailConfig() {
 
 export function hasHostedAuthConfig() {
   try {
+    // Google and Loops are optional (see getSocialProviders and createAuth).
     getHostedBaseUrl();
     getHostedSecret();
-    getGoogleSocialProviderConfig();
-    return (
-      hasHostedTurnstileConfig(env) &&
-      (Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true" ||
-        hasHostedAuthEmailConfig())
-    );
+    return hasHostedTurnstileConfig(env);
   } catch {
     return false;
   }

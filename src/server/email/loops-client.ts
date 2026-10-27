@@ -35,7 +35,6 @@ export async function updateLoopsContact({
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(10_000),
   });
 
   if (response.ok) {
@@ -43,7 +42,7 @@ export async function updateLoopsContact({
   }
 
   const errorPayload = await response.json().catch(() => null);
-  console.warn("Loops contact update error:", {
+  console.error("Loops contact update error:", {
     status: response.status,
     email: payload.email,
     userId: payload.userId,

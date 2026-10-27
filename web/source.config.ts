@@ -3,10 +3,10 @@ import {
   defineCollections,
   frontmatterSchema,
   metaSchema,
-} from "fumadocs-mdx/config";
+} from "fumadocs-mdx/config/zod-3";
 import { z } from "zod";
 
-const pageSchema = frontmatterSchema;
+const pageSchema = frontmatterSchema as any;
 
 export const blog = defineCollections({
   type: "doc",

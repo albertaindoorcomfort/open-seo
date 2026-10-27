@@ -3,6 +3,7 @@ import { useCustomer } from "autumn-js/react";
 import { useEffect, useState } from "react";
 import { ArrowRight, Settings, User } from "lucide-react";
 import { ThemePreferenceMenuItems } from "@/client/components/ThemePreferenceMenuItems";
+import { LunarMark } from "@/client/components/LunarMark";
 import { captureClientEvent } from "@/client/lib/posthog";
 import { signOutAndRedirect, useSession } from "@/lib/auth-client";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
@@ -10,21 +11,18 @@ import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { getSubscribeRouteState } from "@/client/features/billing/route-state";
 import { getCustomerPlanStatus } from "@/client/features/billing/plan-detection";
 import { normalizeAuthRedirect } from "@/lib/auth-redirect";
-import { useCanManageBilling } from "@/client/features/team/organizationQueries";
 import {
-  AUTUMN_CHECKOUT_SESSION_PARAMS,
   AUTUMN_MANAGED_ACCESS_FEATURE_ID,
   AUTUMN_PAID_PLAN_ID,
+  LUNAR_MONTHLY_PRICE_USD,
+  LUNAR_MONTHLY_USAGE_CREDIT_USD,
 } from "@/shared/billing";
-import { BRAND } from "@/shared/brand";
-
-const SUPPORT_EMAIL = BRAND.supportEmail;
 
 const PLAN_FEATURES = [
   "Keyword research, backlinks, rank tracking, and site audits",
   "MCP server and agent skills for Claude, Cursor, and ChatGPT",
   "Google Search Console Integration",
-  "Includes $10.00 of Usage Credits each month",
+  `Includes $${LUNAR_MONTHLY_USAGE_CREDIT_USD.toFixed(2)} of metered usage credits each month`,
 ];
 
 // How long the post-checkout "finalizing" screen polls Autumn before giving
@@ -61,10 +59,6 @@ function SubscribePage() {
       enabled: hasSession,
     },
   });
-
-  // Checkout is owner-only; other members hitting the paywall are pointed at
-  // their organization owner instead of a Subscribe button that would 403.
-  const canManageBilling = useCanManageBilling();
 
   // Read managed access from the already-loaded Autumn customer (local, no API
   // call) instead of a separate server round-trip. Self-hosted has no Autumn
@@ -135,11 +129,7 @@ function SubscribePage() {
   if (subscribeRouteState === "finalizing") {
     return (
       <div className="w-full max-w-xs space-y-4 text-center">
-        <img
-          src={BRAND.logo}
-          alt={BRAND.name}
-          className="mx-auto size-10 rounded-lg"
-        />
+        <LunarMark />
         <h1 className="text-xl font-semibold">
           Finalizing your subscription&hellip;
         </h1>
@@ -148,11 +138,7 @@ function SubscribePage() {
           This usually takes a few seconds.
         </p>
         <p className="text-xs text-base-content/50">
-          Taking longer?{" "}
-          <a className="link" href={`mailto:${SUPPORT_EMAIL}`}>
-            Email {SUPPORT_EMAIL}
-          </a>
-          .
+          Taking longer? Refresh your billing status in a moment.
         </p>
       </div>
     );
@@ -162,11 +148,7 @@ function SubscribePage() {
     return (
       <div className="w-full max-w-xs space-y-4">
         <div className="text-center space-y-3">
-          <img
-            src={BRAND.logo}
-            alt={BRAND.name}
-            className="mx-auto size-10 rounded-lg"
-          />
+          <LunarMark />
           <h1 className="text-xl font-semibold">Billing unavailable</h1>
         </div>
 
@@ -190,6 +172,23 @@ function SubscribePage() {
     );
   }
 
+  // The fork's upstream plan is not an approved Lunar Optimize offer.
+  // The Autumn attach route applies the same default-closed gate server-side.
+  if (import.meta.env.VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED !== "true") {
+    return (
+      <div className="w-full max-w-sm space-y-5 rounded-lg border border-base-300 bg-base-100 p-6 text-center">
+        <h1 className="text-xl font-semibold">Lunar Optimize subscriptions</h1>
+        <p className="text-sm text-base-content/70">
+          Enrollment is being configured. Your existing workspace and available
+          free-plan features remain accessible.
+        </p>
+        <Link to="/workspace" className="btn btn-soft w-full">
+          Open workspace
+        </Link>
+      </div>
+    );
+  }
+
   async function handleSubscribe() {
     setError(null);
     setIsAttaching(true);
@@ -202,7 +201,6 @@ function SubscribePage() {
         planId: AUTUMN_PAID_PLAN_ID,
         redirectMode: "always",
         successUrl: successUrl.toString(),
-        checkoutSessionParams: AUTUMN_CHECKOUT_SESSION_PARAMS,
       });
     } catch (err) {
       setError(
@@ -222,17 +220,13 @@ function SubscribePage() {
       <SubscribePageAccountMenu email={session?.user?.email} />
 
       <div className="text-center space-y-3">
-        <img
-          src={BRAND.logo}
-          alt={BRAND.name}
-          className="mx-auto size-10 rounded-lg"
-        />
+        <LunarMark />
         <h1 className="text-xl font-semibold">
           {isUpgradeFlow
             ? "Upgrade your plan"
             : firstName
-              ? `Welcome to ${BRAND.name}, ${firstName}!`
-              : `Welcome to ${BRAND.name}!`}
+              ? `Welcome to Lunar Optimize, ${firstName}!`
+              : "Welcome to Lunar Optimize!"}
         </h1>
         <p className="text-sm text-base-content/60">
           SEO on your terms. All your SEO tools in one place at a fair price.
@@ -242,7 +236,9 @@ function SubscribePage() {
       <div className="rounded-lg border border-base-300 p-5 space-y-4">
         <div className="flex items-baseline justify-between gap-4">
           <span className="font-semibold">Base Plan</span>
-          <span className="text-lg font-semibold tabular-nums">$10/month</span>
+          <span className="text-lg font-semibold tabular-nums">
+            ${LUNAR_MONTHLY_PRICE_USD}/month
+          </span>
         </div>
 
         <ul className="space-y-2">
@@ -259,55 +255,27 @@ function SubscribePage() {
           ))}
           {/* Sub-bullet of the Usage Credits line above. */}
           <li className="-mt-1 pl-6 text-xs">
-            <a
-              className="text-base-content/60 underline decoration-base-content/40 decoration-dotted underline-offset-4 transition-colors hover:text-base-content"
-              href="https://openseo.so/pricing"
-              target="_blank"
-              rel="noreferrer"
-              onClick={() =>
-                captureClientEvent("billing:pricing_estimator_click")
-              }
-            >
-              How far do usage credits go?{" "}
-              <span aria-hidden="true">&#8599;</span>
-            </a>
+            Usage is metered by feature. Check the billing page for your
+            remaining credits.
           </li>
         </ul>
 
         {error ? <p className="text-sm text-error">{error}</p> : null}
 
-        {canManageBilling ? (
-          <button
-            className="btn btn-soft w-full"
-            disabled={isAttaching}
-            onClick={() => void handleSubscribe()}
-          >
-            {isAttaching ? "Redirecting..." : "Subscribe"}
-          </button>
-        ) : (
-          <p className="text-sm text-base-content/60">
-            Only the organization owner can subscribe. Ask them to upgrade this
-            organization.
-          </p>
-        )}
+        <button
+          className="btn btn-soft w-full"
+          disabled={isAttaching}
+          onClick={() => void handleSubscribe()}
+        >
+          {isAttaching ? "Redirecting..." : "Subscribe"}
+        </button>
 
         <p className="text-center text-xs text-base-content/50">
-          <span
-            className="tooltip before:max-w-60 before:whitespace-normal"
-            data-tip={`Not for you yet? Email ${SUPPORT_EMAIL} within 30 days of your charge and we'll refund your subscription.`}
-          >
-            <span className="cursor-help underline decoration-dotted">
-              30-day money-back guarantee
-            </span>
-          </span>
-          . Cancel anytime. Powered by Stripe.
+          Review the confirmed subscription terms before paying.
         </p>
       </div>
 
       <div className="text-center space-y-2">
-        <p className="text-sm text-base-content/60">
-          Questions? Email {SUPPORT_EMAIL}.
-        </p>
         {isUpgradeFlow ? (
           <button
             type="button"

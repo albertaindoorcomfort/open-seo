@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Copy, Download, Loader2 } from "lucide-react";
-import { reverse, sortBy } from "remeda";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Modal } from "@/client/components/Modal";
@@ -364,7 +363,7 @@ function buildChartData(
     row[p.device] = p.position === null ? serpDepth : p.position;
     byTime.set(ts, row);
   }
-  return sortBy([...byTime.values()], (row) => row.checkedAt);
+  return [...byTime.values()].toSorted((a, b) => a.checkedAt - b.checkedAt);
 }
 
 interface HistoryRow {
@@ -394,7 +393,7 @@ function buildHistoryRows(points: RankKeywordHistoryPoint[]): HistoryRow[] {
     });
     prevByDevice.set(p.device, p.position);
   }
-  return reverse(rows);
+  return rows.toReversed();
 }
 
 function slugify(value: string): string {

@@ -1,6 +1,5 @@
 import { env } from "cloudflare:workers";
 import { and, eq, inArray, isNull, like } from "drizzle-orm";
-import { firstBy, identity } from "remeda";
 import { db } from "@/db";
 import { runBatch } from "@/db/runBatch";
 import { getAuthMode } from "@/lib/auth-mode";
@@ -19,10 +18,8 @@ import { SHARED_WORKSPACE_ORGANIZATION_ID } from "./delegated-organization";
 // chronological for these).
 function earliest(values: (string | null)[]) {
   return (
-    firstBy(
-      values.filter((value): value is string => value !== null),
-      identity(),
-    ) ?? null
+    values.filter((value): value is string => value !== null).toSorted()[0] ??
+    null
   );
 }
 

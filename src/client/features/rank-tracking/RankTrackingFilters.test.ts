@@ -33,7 +33,6 @@ function makeRow(
   return {
     trackingKeywordId: keyword,
     keyword,
-    matchCase: false,
     searchVolume: metrics.volume ?? null,
     keywordDifficulty: metrics.kd ?? null,
     cpc: metrics.cpc ?? null,

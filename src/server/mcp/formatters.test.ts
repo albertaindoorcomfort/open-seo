@@ -26,6 +26,7 @@ describe("mcpResponse", () => {
       text: "hi",
       meta: {
         url: "https://app.openseo.so",
+        organizationId: undefined,
         creditsCharged: 0,
       },
     });
@@ -33,6 +34,7 @@ describe("mcpResponse", () => {
       url: "https://app.openseo.so",
       creditsCharged: 0,
     });
+    expect(result._meta).not.toHaveProperty("organizationId");
   });
 
   it("attaches structuredContent when provided", () => {

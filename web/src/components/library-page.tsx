@@ -2,22 +2,13 @@ import type { ReactNode } from "react";
 import { DocsBody } from "fumadocs-ui/page";
 import { buildBreadcrumbJsonLd } from "@/lib/seo";
 
-const KEYWORD_RESEARCH_LIBRARY = {
-  name: "Keyword Research",
-  path: "/library/keyword-research",
-};
-
-type LibraryRef = {
-  name: string;
-  path: string;
-};
+const KEYWORD_RESEARCH_LIBRARY_PATH = "/library/keyword-research";
 
 type LibrarySpokePageProps = {
   title: string;
   description?: string;
   crumb: string;
   path: string;
-  library?: LibraryRef;
   children: ReactNode;
 };
 
@@ -26,12 +17,11 @@ export function LibrarySpokePage({
   description,
   crumb,
   path,
-  library = KEYWORD_RESEARCH_LIBRARY,
   children,
 }: LibrarySpokePageProps) {
   const breadcrumbLd = buildBreadcrumbJsonLd([
     { name: "Strategy Library", path: "/library" },
-    { name: library.name, path: library.path },
+    { name: "Keyword Research", path: KEYWORD_RESEARCH_LIBRARY_PATH },
     { name: crumb, path },
   ]);
 
@@ -50,10 +40,10 @@ export function LibrarySpokePage({
           </a>{" "}
           /{" "}
           <a
-            href={library.path}
+            href={KEYWORD_RESEARCH_LIBRARY_PATH}
             className="font-medium text-[var(--color-brand-accent)]"
           >
-            {library.name}
+            Keyword Research
           </a>{" "}
           / <span>{crumb}</span>
         </nav>
@@ -71,7 +61,7 @@ export function LibrarySpokePage({
         {children}
       </DocsBody>
 
-      <LibrarySpokeCta library={library} />
+      <LibrarySpokeCta />
 
       <script
         type="application/ld+json"
@@ -82,7 +72,7 @@ export function LibrarySpokePage({
   );
 }
 
-function LibrarySpokeCta({ library }: { library: LibraryRef }) {
+function LibrarySpokeCta() {
   return (
     <section className="mt-14 rounded-xl border border-[var(--color-border-subtle)] bg-white p-6">
       <p className="text-xl font-semibold tracking-tight text-neutral-950">
@@ -103,10 +93,10 @@ function LibrarySpokeCta({ library }: { library: LibraryRef }) {
           </span>
         </a>
         <a
-          href={library.path}
+          href={KEYWORD_RESEARCH_LIBRARY_PATH}
           className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--color-border-subtle)] bg-white px-4 text-sm font-medium text-neutral-950 transition-colors hover:border-neutral-950"
         >
-          Back to {library.name}
+          Back to Keyword Research
         </a>
       </div>
     </section>

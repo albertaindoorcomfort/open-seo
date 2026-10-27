@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { waitUntil } from "cloudflare:workers";
-import { requireOrgPermission } from "@/server/auth/org-gate";
 import { AuditService } from "@/server/features/audit/services/AuditService";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { requireProjectContext } from "@/serverFunctions/middleware";
@@ -17,7 +16,9 @@ export const startAudit = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(startAuditSchema)
   .handler(async ({ data, context }) => {
-    const limitTier = await AuditService.resolveAuditLimitTier(context);
+    const limitTier = await AuditService.resolveAuditLimitTier(
+      context.organizationId,
+    );
 
     const result = await AuditService.startAudit({
       actorUserId: context.userId,
@@ -78,9 +79,6 @@ export const deleteAudit = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(deleteAuditSchema)
   .handler(async ({ data, context }) => {
-    // Deleting audits frees the org's free-plan capacity ceiling (a SUM over
-    // audit rows), so it gets the same destructive-action gate as archiving.
-    requireOrgPermission(context, { project: ["delete"] });
     await AuditService.remove(data.auditId, context.projectId);
     return { success: true };
   });

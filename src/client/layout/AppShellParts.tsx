@@ -1,34 +1,40 @@
-import * as React from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Sidebar } from "@/client/components/Sidebar";
 import { dataforseoHelpLinkOptions } from "@/client/navigation/items";
-import { BRAND } from "@/shared/brand";
 
+const SAMPLE_TEXT: Record<string, string> = {
+  no_key: "DataForSEO is not connected",
+  credits: "DataForSEO is out of credits",
+  auth: "DataForSEO refused the key",
+  quota: "DataForSEO's request limit was reached",
+};
+
+/**
+ * The persistent "Sample data" notice: while DataForSEO has no key or no credits, keyword, results, rank and
+ * backlink numbers are made-up samples (server/lib/dataforseo/sample.ts). It never blocks a screen.
+ */
 function SeoApiStatusBanners({
-  shouldShowSeoApiWarning,
+  sampleReason,
   seoApiKeyStatusError,
 }: {
-  shouldShowSeoApiWarning: boolean;
+  sampleReason: string | null;
   seoApiKeyStatusError: boolean;
 }) {
   return (
     <>
-      {shouldShowSeoApiWarning ? (
-        <div className="shrink-0 px-4 py-2.5 md:px-6">
+      {sampleReason ? (
+        <div className="shrink-0 px-4 py-2 md:px-6">
           <div className="mx-auto max-w-7xl">
-            <div className="alert alert-warning">
-              <AlertTriangle className="size-4 shrink-0" />
-              <span className="text-sm">
-                Setup needed: add your DataForSEO API key to use {BRAND.name}
-                features. See the quick steps on the{" "}
-                <Link
-                  {...dataforseoHelpLinkOptions}
-                  className="link link-primary font-medium"
-                >
-                  help page
+            <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-warning px-3 py-2 text-sm">
+              <span className="badge badge-warning badge-outline font-semibold">Sample data</span>
+              <span className="text-base-content/80">
+                {SAMPLE_TEXT[sampleReason] ?? "DataForSEO is not answering"}, so keyword, results, rank and backlink
+                numbers are samples. Add DATAFORSEO_API_KEY or top up credits for live data (
+                <Link {...dataforseoHelpLinkOptions} className="link link-primary font-medium">
+                  setup steps
                 </Link>
-                .
+                ).
               </span>
             </div>
           </div>
@@ -85,64 +91,5 @@ function MobileSidebarDrawer({
   );
 }
 
-const MissingSeoSetupModal = React.forwardRef<
-  HTMLDivElement,
-  {
-    isOpen: boolean;
-    onClose: () => void;
-  }
->(({ isOpen, onClose }, ref) => {
-  if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dataforseo-setup-title"
-        aria-describedby="dataforseo-setup-description"
-        tabIndex={-1}
-        className="w-full max-w-lg rounded-xl border border-base-300 bg-base-100 p-5 shadow-2xl"
-      >
-        <div className="flex items-start gap-3">
-          <div className="rounded-full bg-warning/20 p-2 text-warning">
-            <AlertTriangle className="size-5" />
-          </div>
-          <div className="space-y-2">
-            <h2
-              id="dataforseo-setup-title"
-              className="text-lg font-semibold text-base-content"
-            >
-              One quick setup step
-            </h2>
-            <p
-              id="dataforseo-setup-description"
-              className="text-sm text-base-content/75"
-            >
-              Add your DataForSEO API key to start using {BRAND.name}.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Dismiss
-          </button>
-          <Link
-            {...dataforseoHelpLinkOptions}
-            className="btn btn-primary"
-            onClick={onClose}
-          >
-            Open setup guide
-            <ExternalLink className="size-4" />
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-MissingSeoSetupModal.displayName = "MissingSeoSetupModal";
-
-export { MissingSeoSetupModal, MobileSidebarDrawer, SeoApiStatusBanners };
+export { MobileSidebarDrawer, SeoApiStatusBanners };

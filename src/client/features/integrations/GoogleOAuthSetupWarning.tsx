@@ -1,6 +1,5 @@
 import { AlertTriangle } from "lucide-react";
 import { SafeExternalLink } from "@/client/components/SafeExternalLink";
-import { BRAND } from "@/shared/brand";
 
 export function GoogleOAuthSetupWarning({
   integrationName,
@@ -15,7 +14,7 @@ export function GoogleOAuthSetupWarning({
       <div className="space-y-1">
         <p className="font-medium">Google OAuth client not configured</p>
         <p className="text-base-content/70">
-          Add your Google client ID and secret to this {BRAND.name} deployment
+          Add your Google client ID and secret to this Lunar Optimize deployment
           before connecting {integrationName}.
         </p>
         <SafeExternalLink

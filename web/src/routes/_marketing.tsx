@@ -58,7 +58,7 @@ function getMobileNavItems(githubStarCount: string) {
     {
       label: "Resources",
       links: [
-        { label: "Agent setup", href: "/docs/agent-setup" },
+        { label: "MCP Setup", href: "/docs/mcp" },
         { label: "Skills", href: "/docs/skills" },
         { label: "Strategy Library", href: "/library" },
         { label: "Blog", href: "/blogs" },

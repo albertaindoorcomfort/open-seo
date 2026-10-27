@@ -56,7 +56,6 @@ function captureMcpToolCall(
         error_code: outcome.errorCode,
         client_id: auth.clientId,
         source: auth.clientId ? "mcp_client" : "in_app_agent",
-        turn_id: context.turnId,
         duration_ms: outcome.durationMs,
         project_id: outcome.projectId,
         row_count: outcome.rowCount,
@@ -107,7 +106,6 @@ export function instrumentMcpToolHandler<TArgs>(
                 tool: toolName,
                 issues: formatValidationIssues(validation.error),
               },
-              context.auth.userId,
             ),
           );
         }
@@ -185,14 +183,10 @@ export function instrumentMcpToolHandler<TArgs>(
       if (shouldCaptureAppErrorCode(appError?.code)) {
         console.error(`mcp.tool error (${toolName}):`, error);
         waitUntil(
-          captureServerError(
-            error,
-            {
-              errorCode: appError?.code ?? "INTERNAL_ERROR",
-              tool: toolName,
-            },
-            context.auth.userId,
-          ),
+          captureServerError(error, {
+            errorCode: appError?.code ?? "INTERNAL_ERROR",
+            tool: toolName,
+          }),
         );
       }
       throw error;

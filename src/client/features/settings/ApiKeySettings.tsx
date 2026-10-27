@@ -19,7 +19,7 @@ export function ApiKeySettings() {
 
   const mcpUrl =
     typeof window === "undefined"
-      ? "https://app.openseo.so/mcp"
+      ? "https://seo.projectlunar.ai/mcp"
       : `${window.location.origin}/mcp`;
 
   const apiKeysQuery = useQuery({
@@ -135,10 +135,7 @@ export function ApiKeySettings() {
                   <td className="max-w-[220px] truncate font-medium">
                     {key.name || "Unnamed key"}
                   </td>
-                  <td
-                    className="font-mono text-xs text-base-content/70"
-                    data-ph-mask
-                  >
+                  <td className="font-mono text-xs text-base-content/70">
                     {key.start || "oseo_"}…
                   </td>
                   <td className="text-xs text-base-content/70">
@@ -200,10 +197,7 @@ export function ApiKeySettings() {
                   to <span className="font-mono text-xs">{mcpUrl}</span>.
                 </p>
                 <div className="mt-4 flex items-center gap-2">
-                  <code
-                    className="min-w-0 flex-1 overflow-x-auto rounded bg-base-200 px-2.5 py-2 font-mono text-xs"
-                    data-ph-mask
-                  >
+                  <code className="min-w-0 flex-1 overflow-x-auto rounded bg-base-200 px-2.5 py-2 font-mono text-xs">
                     {createdKey}
                   </code>
                   <CopyButton

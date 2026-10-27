@@ -17,23 +17,6 @@ const selfHostedAuthMocks = vi.hoisted(() => ({
   createMcpHandler: vi.fn(),
 }));
 
-const authRepositoryMocks = vi.hoisted(() => ({
-  getMembership: vi.fn(),
-}));
-
-const hostedOrganizationMocks = vi.hoisted(() => ({
-  resolveExistingActiveHostedOrganization: vi.fn(),
-}));
-
-vi.mock("@/server/auth/repositories/AuthRepository", () => ({
-  AuthRepository: authRepositoryMocks,
-}));
-
-vi.mock("@/server/auth/default-hosted-organization", () => ({
-  resolveExistingActiveHostedOrganization:
-    hostedOrganizationMocks.resolveExistingActiveHostedOrganization,
-}));
-
 vi.mock("@/middleware/ensure-user/cloudflareAccess", () => ({
   resolveCloudflareAccessContext:
     selfHostedAuthMocks.resolveCloudflareAccessContext,
@@ -101,13 +84,12 @@ function createMcpRequest(headers?: Record<string, string>) {
 
 // The modern (2026-07-28) era is selected by the per-request `_meta` envelope
 // claim; without it every POST classifies as legacy traffic.
-function createModernMcpRequest(headers?: Record<string, string>) {
+function createModernMcpRequest() {
   return new Request("https://open-seo.test/mcp", {
     method: "POST",
     headers: {
       Accept: "application/json, text/event-stream",
       "Content-Type": "application/json",
-      ...headers,
     },
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -218,10 +200,6 @@ describe("handleSelfHostedOpenSeoMcpRequest", () => {
 });
 
 describe("handleAuthenticatedOpenSeoMcpRequest", () => {
-  beforeEach(() => {
-    authRepositoryMocks.getMembership.mockResolvedValue({ role: "owner" });
-  });
-
   it("accepts the provider's encrypted identity and MCP scope fallback", async () => {
     const props = hostedProps();
 
@@ -237,22 +215,13 @@ describe("handleAuthenticatedOpenSeoMcpRequest", () => {
     expect(response.headers.get("connection")).not.toBe("keep-alive");
     expect(selfHostedAuthMocks.createMcpHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        allowedOriginHostnames: [
-          "open-seo.test",
-          "pghallcbnfabbgfijhbcldaapmgidnaa",
-        ],
+        allowedOriginHostnames: ["open-seo.test"],
         legacy: "reject",
       }),
     );
-    // The transport stamps the per-request role and user scope into the props
-    // it hands the server; neither is baked into tokens.
-    expect(selfHostedAuthMocks.createOpenSeoMcpServer).toHaveBeenCalledWith({
-      [MCP_AUTH_CONTEXT_PROP]: {
-        ...props[MCP_AUTH_CONTEXT_PROP],
-        role: "owner",
-        orgScope: "user",
-      },
-    });
+    expect(selfHostedAuthMocks.createOpenSeoMcpServer).toHaveBeenCalledWith(
+      props,
+    );
   });
 
   it("routes modern-era requests to the SDK handler", async () => {
@@ -272,22 +241,6 @@ describe("handleAuthenticatedOpenSeoMcpRequest", () => {
     expect(selfHostedAuthMocks.createOpenSeoMcpServer).not.toHaveBeenCalled();
   });
 
-  it("accepts a modern request from the exact SurfMind extension origin", async () => {
-    const props = hostedProps();
-
-    const response = await handleAuthenticatedOpenSeoMcpRequest(
-      createModernMcpRequest({
-        Origin: "chrome-extension://pghallcbnfabbgfijhbcldaapmgidnaa",
-      }),
-      props,
-      {},
-      { ...ctx, props },
-    );
-
-    expect(response.status).toBe(202);
-    expect(await response.json()).toEqual({ handledBy: "modern" });
-  });
-
   it("rejects a legacy request from a disallowed Origin", async () => {
     const props = hostedProps();
 
@@ -300,50 +253,6 @@ describe("handleAuthenticatedOpenSeoMcpRequest", () => {
 
     expect(response.status).toBe(403);
     expect(selfHostedAuthMocks.createOpenSeoMcpServer).not.toHaveBeenCalled();
-  });
-
-  it("accepts a legacy request from the SurfMind Chrome extension", async () => {
-    const props = hostedProps();
-
-    const response = await handleAuthenticatedOpenSeoMcpRequest(
-      createMcpRequest({
-        Origin: "chrome-extension://pghallcbnfabbgfijhbcldaapmgidnaa",
-      }),
-      props,
-      {},
-      { ...ctx, props },
-    );
-
-    expect(response.status).toBe(200);
-    expect(selfHostedAuthMocks.createOpenSeoMcpServer).toHaveBeenCalledWith({
-      [MCP_AUTH_CONTEXT_PROP]: {
-        ...props[MCP_AUTH_CONTEXT_PROP],
-        role: "owner",
-        orgScope: "user",
-      },
-    });
-  });
-
-  it.each([
-    [
-      "the SurfMind hostname over HTTPS",
-      "https://pghallcbnfabbgfijhbcldaapmgidnaa",
-    ],
-    [
-      "another Chrome extension",
-      "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    ],
-  ])("rejects a request from %s", async (_label, origin) => {
-    const props = hostedProps();
-
-    const response = await handleAuthenticatedOpenSeoMcpRequest(
-      createMcpRequest({ Origin: origin }),
-      props,
-      {},
-      { ...ctx, props },
-    );
-
-    expect(response.status).toBe(403);
   });
 
   it("rejects provider props missing the OAuth client identity", async () => {
@@ -364,63 +273,6 @@ describe("handleAuthenticatedOpenSeoMcpRequest", () => {
     );
 
     expect(response.status).toBe(403);
-  });
-
-  it("rebinds a token to the user's active org when the consent-time membership is gone", async () => {
-    authRepositoryMocks.getMembership.mockResolvedValue(null);
-    hostedOrganizationMocks.resolveExistingActiveHostedOrganization.mockResolvedValue(
-      { organizationId: "org-2", role: "member" },
-    );
-    // No orgScope: a grant minted before the flag existed heals the same way.
-    const props = createWorkersOAuthMcpProps({
-      userId: "user-1",
-      userEmail: "user@example.com",
-      organizationId: "org-1",
-      baseUrl: "https://open-seo.test",
-      clientId: "client-1",
-      scopes: ["mcp"],
-    });
-
-    const response = await handleAuthenticatedOpenSeoMcpRequest(
-      createMcpRequest(),
-      props,
-      {},
-      { ...ctx, props },
-    );
-
-    expect(response.status).toBe(200);
-    expect(selfHostedAuthMocks.createOpenSeoMcpServer).toHaveBeenCalledWith({
-      [MCP_AUTH_CONTEXT_PROP]: {
-        ...props[MCP_AUTH_CONTEXT_PROP],
-        organizationId: "org-2",
-        role: "member",
-        orgScope: "user",
-      },
-    });
-  });
-
-  it("rejects a token whose user belongs to no organization", async () => {
-    authRepositoryMocks.getMembership.mockResolvedValue(null);
-    hostedOrganizationMocks.resolveExistingActiveHostedOrganization.mockResolvedValue(
-      null,
-    );
-    const props = createWorkersOAuthMcpProps({
-      userId: "user-1",
-      userEmail: "user@example.com",
-      organizationId: "org-1",
-      baseUrl: "https://open-seo.test",
-      clientId: "client-1",
-      scopes: ["mcp"],
-    });
-
-    const response = await handleAuthenticatedOpenSeoMcpRequest(
-      createMcpRequest(),
-      props,
-      {},
-      { ...ctx, props },
-    );
-
-    expect(response.status).toBe(401);
   });
 
   it("rejects an OAuth client without the MCP scope", async () => {

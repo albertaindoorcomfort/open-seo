@@ -10,8 +10,6 @@ describe("shouldCaptureAppErrorCode", () => {
     "AUDIT_CAPACITY_REACHED",
     "AUDIT_PAGE_LIMIT_EXCEEDED",
     "AUDIT_ALREADY_RUNNING",
-    "RATE_LIMITED",
-    "UPSTREAM_UNAVAILABLE",
   ] as const)("skips expected %s errors", (code) => {
     expect(shouldCaptureAppErrorCode(code)).toBe(false);
   });

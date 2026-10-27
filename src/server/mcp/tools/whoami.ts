@@ -8,7 +8,6 @@ import { type ToolContext } from "@/server/mcp/context";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import { optionalMetaOutputSchema } from "@/server/mcp/output-schemas";
 import { z } from "zod";
-import { BRAND } from "@/shared/brand";
 
 async function checkBalance(featureId: string, customerId: string) {
   try {
@@ -23,15 +22,18 @@ export const whoamiTool = {
   name: "whoami",
   config: {
     title: "Who am I",
-    description: `Confirms the connected ${BRAND.name} account, server mode, token scopes, and current credit balance when the user asks to check their account or connection. Uses no credits — does not call DataForSEO.`,
+    description:
+      "Returns the authenticated user, organization, server mode, token scopes, and current credit balance. Uses no credits — does not call DataForSEO. Use this first to confirm connection context before choosing a project or running paid tools.",
     inputSchema: {} as Record<string, never>,
-    outputSchema: z.looseObject({
+    outputSchema: {
+      userId: z.string(),
       userEmail: z.string(),
+      organizationId: z.string(),
       scopes: z.array(z.string()),
       mode: z.enum(["hosted", "self-hosted"]),
       creditsRemaining: z.number().nullable(),
       ...optionalMetaOutputSchema,
-    }),
+    },
     annotations: {
       readOnlyHint: true,
       openWorldHint: false,
@@ -53,7 +55,8 @@ export const whoamiTool = {
       creditsRemaining = (base ?? 0) + (topup ?? 0);
     }
     const lines = [
-      `Account: ${auth.userEmail}`,
+      `User: ${auth.userId} (${auth.userEmail})`,
+      `Organization: ${auth.organizationId}`,
       `Mode: ${isHosted ? "hosted" : "self-hosted"}`,
       `Scopes: ${auth.scopes.length > 0 ? auth.scopes.join(", ") : "none"}`,
     ];
@@ -65,10 +68,13 @@ export const whoamiTool = {
     return mcpResponse({
       text: lines.join("\n"),
       meta: {
+        organizationId: auth.organizationId,
         creditsRemaining: creditsRemaining ?? undefined,
       },
       structuredContent: {
+        userId: auth.userId,
         userEmail: auth.userEmail,
+        organizationId: auth.organizationId,
         scopes: auth.scopes,
         mode: isHosted ? "hosted" : "self-hosted",
         creditsRemaining,

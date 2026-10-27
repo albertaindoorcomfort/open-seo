@@ -34,14 +34,12 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
     onSuccess: async (created) => {
       setLastProjectId(created.id);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["dashboardActivation"],
-      });
       onClose();
       toast.success("Project created");
-      // Continue setup through the new project’s dashboard.
+      // Land on the new project's integrations so they can connect Search
+      // Console and finish setting up the workspace.
       void navigate({
-        to: "/p/$projectId",
+        to: "/p/$projectId/settings/integrations",
         params: { projectId: created.id },
       });
     },

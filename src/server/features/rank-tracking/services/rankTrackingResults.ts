@@ -1,6 +1,7 @@
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { toSqliteTimestamp } from "@/server/features/rank-tracking/rankTrackingTimestamps";
 import { AppError } from "@/server/lib/errors";
+import { inDataforseoSampleMode, sampleRankPosition } from "@/server/lib/dataforseo/sample";
 import type { ComparePeriod } from "@/types/schemas/rank-tracking";
 import type {
   RankTrackingDeviceResult,
@@ -27,7 +28,6 @@ export async function getLatestResults(
   run: {
     id: string;
     lastCheckedAt: string | null;
-    completedAt: string | null;
     status: "pending" | "running" | "completed" | "failed";
     errorMessage: string | null;
   } | null;
@@ -101,7 +101,6 @@ export async function getLatestResults(
       {
         trackingKeywordId: keyword.id,
         keyword: keyword.keyword,
-        matchCase: keyword.matchCase,
         searchVolume: keyword.searchVolume,
         keywordDifficulty: keyword.keywordDifficulty,
         cpc: keyword.cpc,
@@ -134,15 +133,29 @@ export async function getLatestResults(
     }
   }
 
+  // Sample mode: rank checks store nothing, so show deterministic sample
+  // positions for keywords without a stored result (the "Sample data" banner
+  // is on screen). Stored results, if any, are left as they are.
+  if (await inDataforseoSampleMode()) {
+    for (const row of rows.values()) {
+      for (const device of ["desktop", "mobile"] as const) {
+        if (row[device].position !== null || row[device].rankingUrl !== null) continue;
+        const position = sampleRankPosition(row.keyword, device);
+        row[device] = {
+          ...row[device],
+          position,
+          rankingUrl: position ? `https://${config.domain}/sample-page` : null,
+        };
+      }
+    }
+  }
+
   return {
     rows: [...rows.values()],
     run: latestRun
       ? {
           id: latestRun.id,
-          // Snapshot-derived: a run that saved zero snapshots leaves this
-          // null even though it finished, so read completedAt for the run.
           lastCheckedAt: latestStartedAt,
-          completedAt: latestRun.completedAt,
           status: latestRun.status,
           errorMessage: latestRun.errorMessage,
         }

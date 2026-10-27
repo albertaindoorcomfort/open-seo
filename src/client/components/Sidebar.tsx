@@ -1,10 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import type { LinkOptions } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ComponentType } from "react";
 import {
-  ArrowLeftRight,
-  Check,
   CircleHelp,
   CreditCard,
   LayoutGrid,
@@ -14,8 +11,6 @@ import {
   User,
   X,
 } from "lucide-react";
-import { organizationContextQueryOptions } from "@/client/features/team/organizationQueries";
-import { switchOrganization } from "@/serverFunctions/organization";
 import {
   connectNavGroup,
   getProjectNavGroups,
@@ -27,7 +22,6 @@ import { closeDropdown } from "@/client/lib/dropdown";
 import { signOutAndRedirect, useSession } from "@/lib/auth-client";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { BILLING_ROUTE } from "@/shared/billing";
-import { BRAND } from "@/shared/brand";
 
 interface SidebarProps {
   projectId: string | null;
@@ -36,7 +30,7 @@ interface SidebarProps {
 }
 
 const navItemBaseClass =
-  "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-base-content/70";
+  "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-base-content/70 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/80";
 
 // Hover uses a lighter tint than the active background (bg-base-300/50) so a
 // hovered item next to the active one stays visually distinct instead of
@@ -83,9 +77,10 @@ function SidebarNavLink({
 }
 
 export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
-  const navGroups = projectId
-    ? getProjectNavGroups(projectId)
-    : [connectNavGroup];
+  const navGroups = [
+    ...(projectId ? getProjectNavGroups(projectId) : []),
+    connectNavGroup,
+  ];
   const navigate = useNavigate();
   const location = useLocation();
   const onSamRoute = location.pathname.includes("/sam");
@@ -124,17 +119,14 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
   };
 
   return (
-    <div className="flex h-full w-60 flex-col bg-base-200">
+    <div className="app-sidebar flex h-full w-60 flex-col">
       <div className="flex items-center justify-between px-4 pb-2 pt-3">
         <Link
           to="/"
           onClick={onNavigate}
-          className="flex items-center gap-2 text-base font-semibold text-base-content"
+          className="text-base font-semibold text-base-content"
         >
-          {BRAND.assetDir ? (
-            <img src={BRAND.logo} alt="" className="size-6 rounded" />
-          ) : null}
-          {BRAND.name}
+          Lunar Optimize
         </Link>
         {onClose ? (
           <button
@@ -236,32 +228,11 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const isHostedMode = isHostedClientAuthMode();
   const email = session?.user?.email;
-  const [isSwitching, setIsSwitching] = useState(false);
-
-  const orgContextQuery = useQuery({
-    ...organizationContextQueryOptions(),
-    enabled: isHostedMode && Boolean(email),
-  });
-  const organizations = orgContextQuery.data?.organizations ?? [];
-  const activeOrganizationId = orgContextQuery.data?.organizationId;
 
   const closeMenu = () => {
     closeDropdown();
     onNavigate?.();
   };
-
-  async function handleSwitchOrganization(organizationId: string) {
-    if (isSwitching || organizationId === activeOrganizationId) return;
-    setIsSwitching(true);
-    try {
-      await switchOrganization({ data: { organizationId } });
-      // Full reload: every cached query and the project-scoped URL belong to
-      // the previous organization.
-      window.location.assign("/");
-    } catch {
-      setIsSwitching(false);
-    }
-  }
 
   return (
     <div className="shrink-0 border-t border-base-300 px-2 py-2 pb-safe">
@@ -289,38 +260,6 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
             tabIndex={0}
             className="dropdown-content z-30 menu mb-1 w-56 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
           >
-            {organizations.length > 1 ? (
-              <>
-                <li className="menu-title flex flex-row items-center gap-1.5 max-w-full">
-                  <ArrowLeftRight className="h-3 w-3" />
-                  Organization
-                </li>
-                {organizations.map((organization) => (
-                  <li key={organization.organizationId}>
-                    <button
-                      type="button"
-                      disabled={isSwitching}
-                      onClick={() =>
-                        void handleSwitchOrganization(
-                          organization.organizationId,
-                        )
-                      }
-                    >
-                      <span className="truncate">
-                        {organization.organizationName}
-                      </span>
-                      {organization.organizationId === activeOrganizationId ? (
-                        <Check className="h-4 w-4 shrink-0" />
-                      ) : null}
-                    </button>
-                  </li>
-                ))}
-                <li
-                  aria-hidden
-                  className="pointer-events-none my-1 h-px bg-base-300 p-0"
-                />
-              </>
-            ) : null}
             <li>
               <Link to="/settings" onClick={closeMenu}>
                 <Settings className="h-4 w-4" />

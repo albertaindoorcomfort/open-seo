@@ -10,9 +10,10 @@ import {
   SUBSCRIBE_ROUTE,
   autumnSeoDataCreditsToUsd,
 } from "@/shared/billing";
-import { BRAND } from "@/shared/brand";
 
 export function FreePlanBanner() {
+  const checkoutEnabled =
+    import.meta.env.VITE_LUNAR_OPTIMIZE_CHECKOUT_ENABLED === "true";
   const { data: session } = useSession();
   const customerQuery = useCustomer({
     queryOptions: {
@@ -55,11 +56,20 @@ export function FreePlanBanner() {
     </Link>
   );
 
+  if (!checkoutEnabled && isFreePlan) {
+    return (
+      <BannerShell variant={isOutOfCredits ? "warning" : "info"}>
+        Lunar Optimize enrollment is being configured. Your current usage
+        balance is ${totalRemaining.toFixed(2)}.
+      </BannerShell>
+    );
+  }
+
   if (isOutOfCredits) {
     return (
       <BannerShell variant="error">
         You&rsquo;ve used all your credits. {creditsActionLink} to continue
-        using {BRAND.name}.
+        using Lunar Optimize.
       </BannerShell>
     );
   }
@@ -68,7 +78,7 @@ export function FreePlanBanner() {
     return (
       <BannerShell variant="warning">
         You&rsquo;re running low on credits. {creditsActionLink} to keep using
-        {BRAND.name}.
+        Lunar Optimize.
       </BannerShell>
     );
   }
@@ -76,7 +86,7 @@ export function FreePlanBanner() {
   if (isFreePlan) {
     return (
       <BannerShell variant="info">
-        We hope you&rsquo;re enjoying {BRAND.name}!{" "}
+        We hope you&rsquo;re enjoying Lunar Optimize!{" "}
         <Link
           to={SUBSCRIBE_ROUTE}
           search={{ upgrade: true }}

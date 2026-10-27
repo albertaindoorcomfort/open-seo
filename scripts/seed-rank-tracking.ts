@@ -28,12 +28,8 @@ import process from "node:process";
 import { getPlatformProxy } from "wrangler";
 import { drizzle } from "drizzle-orm/d1";
 import { and, eq } from "drizzle-orm";
-// This local D1 script runs in Node; the provider-aware barrel requires Workers.
-import * as appSchema from "../src/db/app.schema";
-import { organization, user } from "../src/db/better-auth-schema";
+import * as schema from "../src/db/schema";
 import { parseArgs } from "./cli-utils";
-
-const schema = { ...appSchema, organization, user };
 
 const LOCAL_ADMIN_USER_ID = "local-admin";
 const LOCAL_ADMIN_EMAIL = "admin@localhost";

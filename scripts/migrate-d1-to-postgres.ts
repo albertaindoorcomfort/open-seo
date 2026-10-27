@@ -84,10 +84,6 @@ const args = parseArgs(process.argv.slice(2));
 const dryRun = args["dry-run"] === "true";
 const allowNonEmpty = args["allow-nonempty"] === "true";
 const pageSize = Number(args["page-size"]) || 5000;
-// Tables whose rows are big enough that the default page size would build a
-// multi-gigabyte D1 HTTP response and a multi-gigabyte INSERT. `reports.html`
-// is capped at REPORT_MAX_HTML_BYTES (500 KB) per row.
-const PAGE_SIZE_OVERRIDES: Record<string, number> = { reports: 20 };
 const updateMode = args["update"] === "true";
 const sinceHours = Number(args["since-hours"]) || 12;
 
@@ -336,11 +332,7 @@ async function copyTable(
   // Keep each INSERT's bound-parameter count (rows × columns) well under
   // Postgres's 65535 limit.
   const colCount = Object.keys(getTableColumns(pgTable)).length;
-  const tablePageSize = PAGE_SIZE_OVERRIDES[name] ?? pageSize;
-  const insertBatch = Math.max(
-    1,
-    Math.min(tablePageSize, Math.floor(50000 / colCount)),
-  );
+  const insertBatch = Math.max(1, Math.min(5000, Math.floor(50000 / colCount)));
   const { target, set } = buildUpsert(
     pgTable,
     conflictArbiterNames(sqliteTable),
@@ -354,7 +346,7 @@ async function copyTable(
   for (;;) {
     const page = await d1Query<Record<string, unknown>>(
       databaseId,
-      `SELECT * FROM "${name}" ${where}${orderBy} LIMIT ${tablePageSize} OFFSET ${offset}`,
+      `SELECT * FROM "${name}" ${where}${orderBy} LIMIT ${pageSize} OFFSET ${offset}`,
     );
     if (page.length === 0) break;
 
@@ -366,8 +358,8 @@ async function copyTable(
         : dest.insert(pgTable).values(chunk).onConflictDoNothing());
     }
     count += page.length;
-    offset += tablePageSize;
-    if (page.length < tablePageSize) break;
+    offset += pageSize;
+    if (page.length < pageSize) break;
   }
   return count;
 }

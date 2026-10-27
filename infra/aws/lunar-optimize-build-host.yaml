@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Isolated, stoppable Lunar Optimize build and validation host. No public ingress or production DNS.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  ImageId:
+    Type: AWS::EC2::Image::Id
+  InstanceType:
+    Type: String
+    Default: t3.large
+    AllowedValues:
+      - t3.large
+      - t3.xlarge
+
+Resources:
+  HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lunar Optimize build host; SSM outbound access only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress: []
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: lunar-optimize-build-sg
+        - Key: Product
+          Value: lunar-optimize
+
+  HostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LunarOptimizeBuildHostRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: LunarOptimizeSourceRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: codecommit:GitPull
+                Resource: arn:aws:codecommit:us-west-2:062093043333:open-seo
+      Tags:
+        - Key: Product
+          Value: lunar-optimize
+
+  HostProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref HostRole
+
+  BuildHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref HostSecurityGroup
+      IamInstanceProfile: !Ref HostProfile
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+        HttpPutResponseHopLimit: 1
+      CreditSpecification:
+        CPUCredits: standard
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 50
+            VolumeType: gp3
+            Encrypted: true
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          dnf install -y docker git
+          systemctl enable --now docker
+          mkdir -p /opt/lunar-optimize
+          chown ec2-user:ec2-user /opt/lunar-optimize
+      Tags:
+        - Key: Name
+          Value: lunar-optimize-build
+        - Key: Product
+          Value: lunar-optimize
+        - Key: Lifecycle
+          Value: stop-when-idle
+
+Outputs:
+  InstanceId:
+    Value: !Ref BuildHost
+  SecurityGroupId:
+    Value: !Ref HostSecurityGroup

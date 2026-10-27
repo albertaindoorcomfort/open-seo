@@ -114,7 +114,7 @@ describe("subscription billing", () => {
 
     const result = assertUsageCreditsAvailable("org_123");
     const assertion = expect(result).rejects.toMatchObject({
-      code: "INTERNAL_ERROR",
+      code: "UPSTREAM_UNAVAILABLE",
     });
     await vi.runAllTimersAsync();
 

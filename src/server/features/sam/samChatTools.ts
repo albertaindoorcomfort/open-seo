@@ -14,7 +14,6 @@ import { estimateRankTrackerCostTool } from "@/server/mcp/tools/estimate-rank-tr
 import { getRankTrackerTool } from "@/server/mcp/tools/get-rank-tracker";
 import { removeRankTrackingKeywordsTool } from "@/server/mcp/tools/remove-rank-tracking-keywords";
 import { runRankTrackerTool } from "@/server/mcp/tools/run-rank-tracker";
-import { searchSerpLocationsTool } from "@/server/mcp/tools/search-serp-locations";
 import { getSerpResultsTool } from "@/server/mcp/tools/get-serp-results";
 import {
   getAuditIssuesTool,
@@ -23,7 +22,6 @@ import {
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
-import { removeSavedKeywordsTool } from "@/server/mcp/tools/remove-saved-keywords";
 import { buildUpdateProjectContextTool } from "@/server/mcp/tools/project-context";
 import {
   getGoogleAnalyticsAudienceBreakdownTool,
@@ -60,12 +58,10 @@ import {
 } from "@/server/mcp/tools/search-console-tools";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
 import { discoverSiteUrls, readPages, readSite } from "@/server/lib/scrape";
-import { capToolOutput } from "@/server/features/sam/samToolOutput";
-import openSeoFactSheet from "@/server/features/sam/openseo-fact-sheet.md?raw";
-import { BRAND } from "@/shared/brand";
+import openSeoFactSheet from "@/server/features/onboarding/openseo-fact-sheet.md?raw";
 
-// Enough pages for SAM to work out what a business does, sells, and positions
-// against on its own.
+// SAM reads more of a site than the onboarding preview: enough pages to work
+// out what a business does, sells, and positions against on its own.
 const SAM_MAX_SCRAPE_PAGES = 10;
 const SAM_MAX_MAPPED_URLS = 60;
 
@@ -81,35 +77,18 @@ type McpToolDefinition<Shape extends ZodRawShape> = {
   ) => Promise<CallToolResult>;
 };
 
-// Flatten an MCP CallToolResult into a plain value for the model. The text
-// block renders the same rows the structured data carries (see
-// tool-text-output.test.ts), so when both exist only the head of the text
-// survives — the title line and any caveat, not a second copy of every row.
-// A tool result is re-sent on every step of its turn and persisted in the
-// transcript, so the duplicate would cost twice everywhere.
-const SUMMARY_HEAD_CHARS = 300;
-
-export function toModelOutput(result: CallToolResult): {
-  summary: string;
-  data?: CallToolResult["structuredContent"];
-} {
-  const text = (result.content ?? [])
+// Flatten an MCP CallToolResult into a plain value for the model: the handler's
+// human-readable text summary plus the structured data it returned.
+function toModelOutput(result: CallToolResult): unknown {
+  const summary = (result.content ?? [])
     .filter(
       (part): part is { type: "text"; text: string } => part.type === "text",
     )
     .map((part) => part.text)
     .join("\n");
-  const data = result.structuredContent;
-  // A text-only response still gets a `{ meta }` structuredContent when it
-  // carries a deep link; that is not a second copy of the text.
-  const dataHasRows =
-    data != null && Object.keys(data).some((key) => key !== "meta");
-  if (!dataHasRows) return data ? { summary: text, data } : { summary: text };
-  const summary =
-    text.length > SUMMARY_HEAD_CHARS
-      ? `${text.slice(0, SUMMARY_HEAD_CHARS)}… (full rows in data)`
-      : text;
-  return { summary, data };
+  return result.structuredContent
+    ? { summary, data: result.structuredContent }
+    : { summary };
 }
 
 // Adapt one OpenSEO tool into an AI SDK tool. The shared handler receives the
@@ -145,8 +124,8 @@ function adaptMcpTool<Shape extends ZodRawShape>(
         // Tool calls run inside Think's inference loop, outside any ambient
         // request scope, so each execution scopes its own Postgres client
         // (no-op in D1 mode) — same rule as the DO's other DB-touching seams.
-        return capToolOutput(
-          toModelOutput(await withPgClient(() => handler(fullArgs, context))),
+        return toModelOutput(
+          await withPgClient(() => handler(fullArgs, context)),
         );
       } catch (error) {
         // Surface the failure to the model so it can recover or report it,
@@ -234,9 +213,9 @@ export function waitingAuditStatusTool(
   };
 }
 
-// Free (credit-less) site-reading tools, split into discovery + reading so the
-// model can pick which pages to read instead of blindly taking the first N
-// sitemap entries.
+// Free (credit-less) site-reading tools, mirroring the onboarding agent's
+// read_website but split into discovery + reading so the model can pick which
+// pages to read instead of blindly taking the first N sitemap entries.
 function scrapeTools(projectDomain: string | null): ToolSet {
   return {
     map_links: tool({
@@ -293,7 +272,7 @@ function scrapeTools(projectDomain: string | null): ToolSet {
             note: "Could not read the requested page(s). Ask the user to describe the site instead, and say you couldn't read it.",
           };
         }
-        return capToolOutput({ blocked: false, pages: site.pages });
+        return { blocked: false, pages: site.pages };
       },
     }),
   };
@@ -315,10 +294,9 @@ function scrapeTools(projectDomain: string | null): ToolSet {
 export function buildSamMcpTools(
   authContext: ToolAuthContext,
   project: { id: string; domain: string | null },
-  turnId?: string,
 ): ToolSet {
   const projectId = project.id;
-  const toolContext: ToolContext = { auth: authContext, turnId };
+  const toolContext: ToolContext = { auth: authContext };
   const adaptTool = <Shape extends ZodRawShape>(
     definition: McpToolDefinition<Shape>,
   ) => adaptMcpTool(definition, toolContext, projectId);
@@ -354,7 +332,8 @@ export function buildSamMcpTools(
     // On-demand product reference (kept out of the system prompt: inlining it
     // made the agent narrate hosted/self-hosted framing at signed-in users).
     get_product_info: tool({
-      description: `The ${BRAND.name} fact sheet: what the product does, plans/pricing, credit costs, integrations, MCP setup. Call before answering questions about ${BRAND.name} itself. Uses no credits.`,
+      description:
+        "The OpenSEO fact sheet: what the product does, plans/pricing, credit costs, integrations, MCP setup. Call before answering questions about OpenSEO itself. Uses no credits.",
       inputSchema: z.object({}),
       execute: () => Promise.resolve({ factSheet: openSeoFactSheet }),
     }),
@@ -364,7 +343,6 @@ export function buildSamMcpTools(
     // a read-only context block, so get_project_context would just re-fetch it.
     update_project_context: adaptTool(buildUpdateProjectContextTool("sam")),
     list_saved_keywords: adaptTool(listSavedKeywordsTool),
-    remove_saved_keywords: adaptTool(removeSavedKeywordsTool),
     research_keywords: adaptTool(researchKeywordsTool),
     save_keywords: adaptTool(saveKeywordsTool),
     get_domain_overview: adaptTool(getDomainOverviewTool),
@@ -372,7 +350,6 @@ export function buildSamMcpTools(
     get_backlinks_overview: adaptTool(getBacklinksOverviewTool),
     get_backlinks_profile: adaptTool(getBacklinksProfileTool),
     get_serp_results: adaptTool(getSerpResultsTool),
-    search_serp_locations: adaptTool(searchSerpLocationsTool),
     create_rank_tracker: adaptTool(createRankTrackerTool),
     get_rank_tracker: adaptTool(getRankTrackerTool),
     add_rank_tracking_keywords: adaptTool(addRankTrackingKeywordsTool),

@@ -1,11 +1,12 @@
 import { FREE_MAX_AUDIT_PAGES } from "@/shared/audit-limits";
 import { isErrorCode, type ErrorCode } from "@/shared/error-codes";
-import { BRAND } from "@/shared/brand";
 
 const STANDARD_MESSAGES: Record<ErrorCode, string> = {
   UNAUTHENTICATED: "Please sign in and try again.",
-  AUTH_CONFIG_MISSING: `${BRAND.name} auth is not configured. Follow the README setup steps for Cloudflare Access.`,
-  PAYMENT_REQUIRED: `An active hosted subscription is required before you can use ${BRAND.name}.`,
+  AUTH_CONFIG_MISSING:
+    "Lunar Optimize auth is not configured. Follow the README setup steps for Cloudflare Access.",
+  PAYMENT_REQUIRED:
+    "An active hosted subscription is required before you can use Lunar Optimize.",
   INSUFFICIENT_CREDITS:
     "You've run out of credits. Add more credits or upgrade your plan to continue.",
   FORBIDDEN: "You do not have access to this resource.",
@@ -14,7 +15,7 @@ const STANDARD_MESSAGES: Record<ErrorCode, string> = {
     "You've reached audit capacity for your account. Delete old audits from your projects to start a new one.",
   AUDIT_PAGE_LIMIT_EXCEEDED: `Free plan audits are limited to ${FREE_MAX_AUDIT_PAGES} pages. Upgrade to run larger audits.`,
   AUDIT_ALREADY_RUNNING:
-    "You've reached the limit of audits running at once. Wait for one to finish or delete it before starting another.",
+    "You already have an audit running. Wait for it to finish or delete it before starting another.",
   VALIDATION_ERROR: "Please check your input and try again.",
   CRAWL_TARGET_BLOCKED: "This crawl target is blocked by security policy.",
   BACKLINKS_BILLING_ISSUE:

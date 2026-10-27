@@ -1,16 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { getOnboardingAnswers } from "@/serverFunctions/onboarding";
 
-// 0 interests · 1 who for · 2 source · 3 Search Console · 4 agent setup
-export const ONBOARDING_LAST_STEP = 4;
-
-// Option values below are persisted and used by analytics. Change display copy
-// here instead of renaming those values, so historical answers stay comparable.
-export const ONBOARDING_OPTION_LABELS: Readonly<Record<string, string>> = {
-  "AI workflows with Claude or Codex (MCP)": "AI Workflows (MCP + Skills)",
-  "My own startup or business": "My Own Business",
-  "My employer's website": "My Company's Website",
-};
+export const ONBOARDING_LAST_STEP = 3;
 
 export const INTEREST_OPTIONS = [
   "AI workflows with Claude or Codex (MCP)",
@@ -40,17 +31,23 @@ export const CLIENT_WEBSITE_COUNT_OPTIONS = [
   "25+",
 ] as const;
 
-// Display order. Keep persisted values stable for attribution metrics.
 export const SOURCE_OPTIONS = [
+  "Product Hunt",
   "Google",
+  "Reddit",
   "X / Twitter",
   "GitHub",
-  "Instagram",
-  "YouTube",
-  "Friend or colleague",
   "AI (Claude, ChatGPT, etc)",
-  "Product Hunt",
+  "Friend or colleague",
   "Other",
+] as const;
+
+// Keep the mobile list short: these still count as known options, they just
+// aren't shown on small screens.
+export const SOURCE_OPTIONS_HIDDEN_ON_MOBILE = [
+  "Reddit",
+  "X / Twitter",
+  "AI (Claude, ChatGPT, etc)",
 ] as const;
 
 /** In-progress form state. Step is tracked separately in the URL. */
@@ -62,7 +59,6 @@ export type OnboardingAnswers = {
   clientWebsiteCount: string;
   source: string;
   sourceOther: string;
-  mcpSetupIntent?: "yes" | "no" | "";
 };
 
 /** Answers as persisted in the DB (read back via getOnboardingAnswers). */
@@ -112,10 +108,6 @@ export function restoreOnboardingAnswers(
       work.value === CLIENT_WORK_FOR ? (saved.clientWebsiteCount ?? "") : "",
     source: found.value,
     sourceOther: found.other,
-    mcpSetupIntent:
-      saved.mcpSetupIntent === "yes" || saved.mcpSetupIntent === "no"
-        ? saved.mcpSetupIntent
-        : "",
   };
 }
 
@@ -126,7 +118,7 @@ export function restoreOnboardingAnswers(
 export function buildOnboardingPayload(
   answers: OnboardingAnswers,
   step: number,
-  extra: { completed?: boolean; mcpSetupIntent?: "yes" | "no" } = {},
+  extra: { completed?: boolean } = {},
 ) {
   const interestedFeatures = answers.selectedInterests.map((value) =>
     value === "Other" && answers.interestOther.trim()
@@ -150,9 +142,6 @@ export function buildOnboardingPayload(
     ...(step >= 0 ? { interestedFeatures } : {}),
     ...(step >= 1 ? { workFor, clientWebsiteCount } : {}),
     ...(step >= 2 ? { foundVia } : {}),
-    ...(step >= ONBOARDING_LAST_STEP && answers.mcpSetupIntent
-      ? { mcpSetupIntent: answers.mcpSetupIntent }
-      : {}),
     ...extra,
   };
 }

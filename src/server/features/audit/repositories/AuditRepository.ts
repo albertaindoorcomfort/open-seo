@@ -11,7 +11,6 @@ import {
   auditIssues,
   auditLighthouseResults,
   auditPages,
-  projects,
 } from "@/db/schema";
 import { executeInBatches } from "@/db/runBatch";
 import { AUDIT_ISSUE_TYPES } from "@/shared/audit-issues";
@@ -22,7 +21,6 @@ import type {
   CrawledPageResult,
   LighthouseResult,
 } from "@/server/lib/audit/types";
-import type { PageFetchClass } from "@/shared/audit-fetch-class";
 
 async function createAudit(data: {
   id: string;
@@ -310,20 +308,17 @@ async function getPagesForAudit(auditId: string) {
     .where(eq(auditPages.auditId, auditId));
 }
 
-async function countPagesByFetchClass(
-  auditId: string,
-  fetchClass: PageFetchClass,
-): Promise<number> {
+async function countBlockedPages(auditId: string): Promise<number> {
   const rows = await db
-    .select({ pages: count() })
+    .select({ blocked: count() })
     .from(auditPages)
     .where(
       and(
         eq(auditPages.auditId, auditId),
-        eq(auditPages.fetchClass, fetchClass),
+        eq(auditPages.fetchClass, "blocked"),
       ),
     );
-  return rows[0]?.pages ?? 0;
+  return rows[0]?.blocked ?? 0;
 }
 
 async function hasPagesForAudit(auditId: string): Promise<boolean> {
@@ -345,19 +340,15 @@ async function getAuditsByProject(projectId: string) {
   return rows.map(({ audit }) => audit);
 }
 
-// Org-scoped: the free-plan quota belongs to the org (the Autumn customer),
-// so usage must aggregate across every member — counting per starting user
-// would multiply the free ceiling by the member count.
-async function getAuditUsageForOrganization(organizationId: string) {
-  const rows = await db
-    .select({
-      status: audits.status,
-      pagesTotal: audits.pagesTotal,
-      lighthouseTotal: audits.lighthouseTotal,
-    })
-    .from(audits)
-    .innerJoin(projects, eq(audits.projectId, projects.id))
-    .where(eq(projects.organizationId, organizationId));
+async function getAuditUsageForUser(userId: string) {
+  const rows = await db.query.audits.findMany({
+    where: eq(audits.startedByUserId, userId),
+    columns: {
+      status: true,
+      pagesTotal: true,
+      lighthouseTotal: true,
+    },
+  });
 
   return {
     capacityUnits: rows.reduce(
@@ -443,10 +434,10 @@ export const AuditRepository = {
   getLatestAuditForProject,
   getIssuesForAudit,
   getPagesForAudit,
-  countPagesByFetchClass,
+  countBlockedPages,
   hasPagesForAudit,
   getAuditsByProject,
-  getAuditUsageForOrganization,
+  getAuditUsageForUser,
   getAuditResultsForProject,
   getLighthouseResultById,
   deleteAuditForProject,

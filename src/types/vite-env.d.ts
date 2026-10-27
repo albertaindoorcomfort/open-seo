@@ -7,8 +7,6 @@ interface ViteTypeOptions {
 
 interface ImportMetaEnv {
   readonly VITE_SHOW_DEVTOOLS?: string;
-  readonly VITE_BRAND?: string;
-  readonly VITE_BRAND_SUPPORT_EMAIL?: string;
   readonly BYPASS_EMAIL_VERIFICATION?: string;
   // more env variables...
 }

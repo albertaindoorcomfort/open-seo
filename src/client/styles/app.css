@@ -90,28 +90,6 @@
   --noise: 0;
 }
 
-/* Tenant palettes. Selected by data-brand on <html> (VITE_BRAND); the
-   daisyUI theme names stay the same so light/dark selectors keep working. */
-html[data-brand="aic"][data-theme="openseo"] {
-  --color-base-200: #f5efe6;
-  --color-base-300: #e4dccd;
-  --color-base-content: #3a4051;
-  --color-primary: #1b365d;
-  --color-primary-content: #ffffff;
-  --color-accent: #e87722;
-  --color-accent-content: #ffffff;
-}
-html[data-brand="aic"][data-theme="openseo-dark"] {
-  --color-base-100: #16294a;
-  --color-base-200: #0f1f36;
-  --color-base-300: #1b365d;
-  --color-base-content: #f5efe6;
-  --color-primary: #fbb040;
-  --color-primary-content: #0f1f36;
-  --color-accent: #e87722;
-  --color-accent-content: #0f1f36;
-}
-
 html,
 body {
   @apply m-0 bg-base-200;
@@ -119,6 +97,33 @@ body {
   -moz-osx-font-smoothing: grayscale;
   height: 100%;
   overflow: hidden;
+}
+
+/* The navigation is the product's signal surface: indigo discovery flows into
+   a restrained emerald result state. Scoped DaisyUI tokens keep every nested
+   control legible in both the application's light and dark themes. */
+.app-sidebar {
+  --color-base-100: oklch(24% 0.05 252 / 0.96);
+  --color-base-200: oklch(18% 0.06 255);
+  --color-base-300: oklch(98% 0.01 250 / 0.16);
+  --color-base-content: oklch(98% 0.01 250);
+  --color-primary: oklch(79% 0.16 145);
+  --color-primary-content: oklch(16% 0.04 152);
+  background-color: oklch(22% 0.08 260);
+  background-image:
+    radial-gradient(
+      circle at 14% -4%,
+      oklch(72% 0.16 145 / 0.46) 0%,
+      transparent 38%
+    ),
+    linear-gradient(
+      150deg,
+      oklch(41% 0.17 267) 0%,
+      oklch(25% 0.1 257) 52%,
+      oklch(27% 0.1 164) 100%
+    );
+  color: var(--color-base-content);
+  box-shadow: inset -1px 0 oklch(98% 0.01 250 / 0.12);
 }
 
 /* Prevent Safari mobile from zooming on input focus (requires 16px minimum) */

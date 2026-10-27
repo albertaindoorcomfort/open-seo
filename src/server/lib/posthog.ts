@@ -16,16 +16,9 @@ function getServerPostHogClient(): PostHog | null {
   });
 }
 
-/**
- * `distinctId` must be the better-auth user id, the same identity
- * identifyAnalyticsUser and captureServerEvent send, so exceptions land on the
- * existing person profile. Omitting it makes posthog-node mint a fresh anonymous
- * id per event, so every error reports as many users affected as it has events.
- */
 export async function captureServerError(
   error: unknown,
   properties: Record<string, string | null | undefined> = {},
-  distinctId?: string,
 ) {
   if (!(await isHostedServerAuthMode())) {
     return;
@@ -35,7 +28,7 @@ export async function captureServerError(
   if (!client) return;
 
   try {
-    await client.captureExceptionImmediate(error, distinctId, {
+    await client.captureExceptionImmediate(error, undefined, {
       source: "server",
       ...properties,
     });

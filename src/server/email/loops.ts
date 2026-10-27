@@ -3,7 +3,6 @@ import {
   getContactNameParts,
   updateLoopsContact,
 } from "@/server/email/loops-client";
-import { BRAND } from "@/shared/brand";
 
 const LOOPS_TRANSACTIONAL_URL = "https://app.loops.so/api/v1/transactional";
 
@@ -59,7 +58,6 @@ async function sendLoopsTransactionalEmail({
       addToAudience: false,
       dataVariables,
     }),
-    signal: AbortSignal.timeout(10_000),
   });
 
   if (response.ok) {
@@ -123,39 +121,8 @@ export async function sendHostedVerificationEmail({
     email,
     transactionalId: config.verificationTemplateId,
     dataVariables: {
-      appName: BRAND.name,
+      appName: "OpenSEO",
       confirmationUrl,
-    },
-  });
-}
-
-export async function sendHostedInvitationEmail({
-  email,
-  inviteUrl,
-  organizationName,
-  inviterName,
-  inviterEmail,
-}: {
-  email: string;
-  inviteUrl: string;
-  organizationName: string;
-  inviterName: string;
-  inviterEmail: string;
-}) {
-  // Not part of getHostedAuthEmailConfig(): that trio gates hasHostedAuthConfig
-  // and adding a new required var there would brick existing deployments.
-  const apiKey = getRequiredEnv("LOOPS_API_KEY");
-  const templateId = getRequiredEnv("LOOPS_TRANSACTIONAL_INVITATION_ID");
-  await sendLoopsTransactionalEmail({
-    apiKey,
-    email,
-    transactionalId: templateId,
-    dataVariables: {
-      appName: BRAND.name,
-      inviteUrl,
-      organizationName,
-      inviterName,
-      inviterEmail,
     },
   });
 }
@@ -173,7 +140,7 @@ export async function sendHostedPasswordResetEmail({
     email,
     transactionalId: config.passwordResetTemplateId,
     dataVariables: {
-      appName: BRAND.name,
+      appName: "OpenSEO",
       resetUrl,
     },
   });

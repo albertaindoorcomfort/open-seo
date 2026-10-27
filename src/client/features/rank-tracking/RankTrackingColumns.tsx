@@ -122,24 +122,14 @@ function makeKeywordColumn(
       <SortableHeader column={column} label="Keyword" id="keyword" />
     ),
     cell: ({ row }) => (
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          className="font-medium text-left link link-hover decoration-dotted underline-offset-2"
-          onClick={() => onKeywordClick(row.original)}
-          title="View position history"
-        >
-          {row.original.keyword}
-        </button>
-        {row.original.matchCase && (
-          <span
-            className="badge badge-xs cursor-help bg-base-300 border-0 text-base-content/70"
-            title="Tracked exactly as typed, not lowercased"
-          >
-            Aa
-          </span>
-        )}
-      </div>
+      <button
+        type="button"
+        className="font-medium text-left link link-hover decoration-dotted underline-offset-2"
+        onClick={() => onKeywordClick(row.original)}
+        title="View position history"
+      >
+        {row.original.keyword}
+      </button>
     ),
     sortingFn: "alphanumeric",
   };

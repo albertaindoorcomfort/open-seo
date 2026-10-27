@@ -4,7 +4,6 @@
  * orphans) live in multipage.ts.
  */
 import type { DetectedIssue } from "@/server/lib/audit/issues/page-reporters";
-import type { PageFetchClass } from "@/shared/audit-fetch-class";
 
 const DUPLICATE_GROUP_SAMPLE = 3;
 
@@ -12,7 +11,7 @@ export interface SlimPage {
   id: string;
   url: string;
   statusCode: number | null;
-  fetchClass: PageFetchClass;
+  fetchClass: "ok" | "blocked" | "error";
   title: string | null;
   metaDescription: string | null;
   contentHash: string | null;

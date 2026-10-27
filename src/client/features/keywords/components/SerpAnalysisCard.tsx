@@ -6,11 +6,8 @@ export function SerpAnalysisCard({
   items,
   keyword,
   loading,
-  loadingMore,
-  canLoadMore,
   error,
   onRetry,
-  deepFetchFailed,
   page,
   pageSize,
   onPageChange,
@@ -18,14 +15,8 @@ export function SerpAnalysisCard({
   items: SerpResultItem[];
   keyword?: string | null;
   loading: boolean;
-  /** A deeper snapshot is being fetched; `items` is still the shallow one. */
-  loadingMore: boolean;
-  /** Paging past the loaded results can buy a deeper snapshot. */
-  canLoadMore: boolean;
   error?: string | null;
   onRetry?: () => void;
-  /** The failure was the deeper crawl, so retrying restores the shallow one. */
-  deepFetchFailed: boolean;
   page: number;
   pageSize: number;
   onPageChange: (p: number) => void;
@@ -40,7 +31,7 @@ export function SerpAnalysisCard({
         <p>{error}</p>
         {onRetry ? (
           <button className="btn btn-xs" onClick={onRetry}>
-            {deepFetchFailed ? "Show top 20" : "Retry"}
+            Retry
           </button>
         ) : null}
       </div>
@@ -65,16 +56,10 @@ export function SerpAnalysisCard({
           feature="serp_analysis"
         />
       </div>
-      {pageItems.length === 0 && loadingMore ? (
-        <SerpAnalysisLoadingState />
-      ) : (
-        <SerpAnalysisTable items={pageItems} />
-      )}
+      <SerpAnalysisTable items={pageItems} />
       <SerpAnalysisPagination
         page={page}
         totalPages={totalPages}
-        loadingMore={loadingMore}
-        canLoadMore={canLoadMore}
         onPageChange={onPageChange}
       />
     </div>
@@ -128,38 +113,23 @@ function SerpAnalysisTable({ items }: { items: SerpResultItem[] }) {
 function SerpAnalysisPagination({
   page,
   totalPages,
-  loadingMore,
-  canLoadMore,
   onPageChange,
 }: {
   page: number;
   totalPages: number;
-  loadingMore: boolean;
-  canLoadMore: boolean;
   onPageChange: (p: number) => void;
 }) {
-  if (totalPages <= 1 && !canLoadMore) return null;
-
-  // Past the loaded results, "Next" stops being free paging and buys a deeper
-  // crawl — say so on the button rather than spending silently.
-  const nextBuysDeeperSnapshot =
-    canLoadMore && !loadingMore && page >= totalPages - 1;
+  if (totalPages <= 1) return null;
 
   return (
     <div className="flex items-center justify-between mt-3 pt-3 border-t border-base-200">
       <span className="text-xs text-base-content/50">
-        {loadingMore ? (
-          "Loading more results…"
-        ) : (
-          <>
-            Page {page + 1} of {totalPages}
-          </>
-        )}
+        Page {page + 1} of {totalPages}
       </span>
       <div className="flex gap-1">
         <button
           className="btn btn-ghost btn-xs"
-          disabled={page === 0 || loadingMore}
+          disabled={page === 0}
           onClick={() => onPageChange(page - 1)}
         >
           <ChevronLeft className="size-3.5" />
@@ -167,10 +137,10 @@ function SerpAnalysisPagination({
         </button>
         <button
           className="btn btn-ghost btn-xs"
-          disabled={loadingMore || (page >= totalPages - 1 && !canLoadMore)}
+          disabled={page >= totalPages - 1}
           onClick={() => onPageChange(page + 1)}
         >
-          {nextBuysDeeperSnapshot ? "Load top 100" : "Next"}
+          Next
           <ChevronRight className="size-3.5" />
         </button>
       </div>

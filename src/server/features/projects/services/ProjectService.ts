@@ -2,12 +2,12 @@ import {
   archiveProject,
   createProject,
   getProjectForOrganization,
-  getProjectWithOrganization,
   listArchivedProjects,
   listProjects,
   listProjectsEnsuringOne,
   restoreProject,
-  setProjectWebsite,
+  setProjectDomain,
+  setProjectMarket,
   updateProject,
 } from "@/server/features/projects/services/projects";
 
@@ -16,10 +16,10 @@ export const ProjectService = {
   listProjectsEnsuringOne,
   createProject,
   updateProject,
-  setProjectWebsite,
+  setProjectDomain,
+  setProjectMarket,
   archiveProject,
   restoreProject,
   listArchivedProjects,
   getProjectForOrganization,
-  getProjectWithOrganization,
 } as const;

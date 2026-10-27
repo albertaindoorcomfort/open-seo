@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { findLast } from "remeda";
 import {
   Check,
   ChevronsUpDown,
@@ -93,8 +92,7 @@ export function ProjectSwitcher({
     // project, so they fall back to their section. Filtering on the path
     // template rather than match.params matters: the router gives every match
     // the location's full param set, so params can't tell layers apart.
-    const stayable = findLast(
-      router.state.matches,
+    const stayable = router.state.matches.findLast(
       (match) =>
         match.fullPath.includes("$projectId") &&
         match.fullPath

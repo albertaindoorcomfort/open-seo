@@ -7,7 +7,7 @@ import { BlogLayout } from "@/components/blog-layout";
 import type { ComponentPropsWithoutRef } from "react";
 import { Suspense } from "react";
 import { getBlogPost } from "@/lib/content.functions";
-import { blog } from "../../../.source/index";
+import { blog } from "../../../source.generated";
 import { buildPageSeo } from "@/lib/seo";
 
 export const Route = createFileRoute("/blogs/$")({

@@ -1,4 +1,3 @@
-import { sort } from "remeda";
 import { LOCATIONS } from "@/client/features/keywords/locations";
 import { devicesLabel } from "@/shared/rank-tracking";
 import type {
@@ -107,13 +106,10 @@ export function getDomainListFilterOptions(configs: DomainFilterableConfig[]): {
     );
   }
 
-  const locations = sort(
-    Array.from(locationMap, ([code, label]) => ({
-      value: String(code),
-      label,
-    })),
-    (a, b) => a.label.localeCompare(b.label),
-  );
+  const locations = Array.from(locationMap, ([code, label]) => ({
+    value: String(code),
+    label,
+  })).toSorted((a, b) => a.label.localeCompare(b.label));
 
   return { devices, locations };
 }

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { LunarMark } from "@/client/components/LunarMark";
 import { Check, Database, KeyRound, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { captureClientEvent } from "@/client/lib/posthog";
-import { BRAND } from "@/shared/brand";
 
 export const Route = createFileRoute("/_authenticated/oauth-consent")({
   component: OAuthConsentPage,
@@ -12,13 +12,13 @@ export const Route = createFileRoute("/_authenticated/oauth-consent")({
 const SCOPES = [
   {
     icon: Database,
-    label: `Read your ${BRAND.name} data`,
+    label: "Read your Lunar Optimize data",
     description: "Projects, keyword reports, and audit results.",
   },
   {
     icon: KeyRound,
     label: "Act on your behalf via MCP",
-    description: "Run tools and write results back to your organization.",
+    description: "Run tools and write results back to your workspace.",
   },
 ];
 
@@ -73,10 +73,10 @@ function OAuthConsentPage() {
   return (
     <div className="w-full max-w-md rounded-2xl border border-base-300 bg-base-100 p-8 shadow-sm">
       <div className="flex flex-col items-center text-center">
-        <img src={BRAND.logo} alt={BRAND.name} className="size-10 rounded-lg" />
+        <LunarMark />
         <h1 className="mt-5 text-xl font-semibold">Authorize MCP access</h1>
         <p className="mt-2 text-sm text-base-content/70">
-          An MCP client is requesting access to your {BRAND.name} workspace.
+          An MCP client is requesting access to your Lunar Optimize workspace.
         </p>
       </div>
 

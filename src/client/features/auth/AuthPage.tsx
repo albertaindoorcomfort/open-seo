@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
+import { getAuthOptions } from "@/serverFunctions/config";
 import {
   getCurrentAuthRedirect,
   getOAuthSignedQuery,
 } from "@/lib/auth-redirect";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
-import { BRAND } from "@/shared/brand";
 
 export const authRedirectSearchSchema = z.object({
   redirect: z.string().optional(),
@@ -40,17 +41,27 @@ export function AuthMethodChooser({
   onContinueWithGoogle: () => void;
   onContinueWithEmail: () => void;
 }) {
+  // Google sign-in shows only when this deployment has its ids set.
+  const options = useQuery({
+    queryKey: ["auth-options"],
+    queryFn: () => getAuthOptions(),
+    staleTime: Infinity,
+  });
+  const showGoogle = options.data?.google === true;
+
   return (
     <div className="space-y-3">
-      <button
-        type="button"
-        className="btn w-full border border-black/10 bg-white text-neutral-900 hover:border-black/20 hover:bg-neutral-50 disabled:bg-white disabled:text-neutral-500 disabled:opacity-70"
-        onClick={onContinueWithGoogle}
-        disabled={disabled || isBusy}
-      >
-        <GoogleLogo />
-        {isBusy ? "Opening Google..." : googleLabel}
-      </button>
+      {showGoogle ? (
+        <button
+          type="button"
+          className="btn w-full border border-black/10 bg-white text-neutral-900 hover:border-black/20 hover:bg-neutral-50 disabled:bg-white disabled:text-neutral-500 disabled:opacity-70"
+          onClick={onContinueWithGoogle}
+          disabled={disabled || isBusy}
+        >
+          <GoogleLogo />
+          {isBusy ? "Opening Google..." : googleLabel}
+        </button>
+      ) : null}
 
       <button
         type="button"
@@ -101,11 +112,12 @@ export function AuthPageCard({
   return (
     <div className="w-full max-w-xs space-y-6">
       <div className="text-center space-y-3">
-        <img
-          src={BRAND.logo}
-          alt={BRAND.name}
-          className="mx-auto size-10 rounded-lg"
-        />
+        <div
+          aria-label="Lunar Optimize"
+          className="mx-auto flex size-10 items-center justify-center rounded-full border border-primary text-2xl text-primary"
+        >
+          <span aria-hidden="true">◐</span>
+        </div>
         <div>
           <h1 className="text-xl font-semibold">{title}</h1>
           {helperText ? (

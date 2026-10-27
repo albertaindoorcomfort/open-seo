@@ -12,7 +12,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { AutumnProvider } from "autumn-js/react";
 import * as React from "react";
 import { DefaultCatchBoundary } from "@/client/components/DefaultCatchBoundary";
-import { captureGoogleLinkError } from "@/client/features/integrations/googleLinkError";
 import { ExportToSheetsModal } from "@/client/components/table/ExportToSheetsModal";
 import { themePreferenceInitScript } from "@/client/lib/theme";
 import {
@@ -28,17 +27,12 @@ import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { Toaster } from "sonner";
 import { queryClient } from "@/client/tanstack-db";
 import { getActiveOrganizationId } from "@/lib/auth-session";
-import { BRAND, brandAsset } from "@/shared/brand";
-
-// Capture Google link error params before the router starts — a route loader
-// redirect would otherwise replace the URL and lose them. See googleLinkError.ts.
-captureGoogleLinkError();
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       {
-        title: BRAND.name,
+        title: "Lunar Optimize",
       },
       {
         charSet: "utf-8",
@@ -70,22 +64,22 @@ export const Route = createRootRoute({
       {
         rel: "apple-touch-icon",
         sizes: "180x180",
-        href: brandAsset("apple-touch-icon.png"),
+        href: "/apple-touch-icon.png",
       },
       {
         rel: "icon",
         type: "image/png",
         sizes: "32x32",
-        href: brandAsset("favicon-32x32.png"),
+        href: "/favicon-32x32.png",
       },
       {
         rel: "icon",
         type: "image/png",
         sizes: "16x16",
-        href: brandAsset("favicon-16x16.png"),
+        href: "/favicon-16x16.png",
       },
-      { rel: "icon", type: "image/x-icon", href: brandAsset("favicon.ico") },
-      { rel: "manifest", href: brandAsset("site.webmanifest") },
+      { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+      { rel: "manifest", href: "/site.webmanifest" },
     ],
     scripts: [],
   }),
@@ -132,7 +126,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     import.meta.env.DEV && import.meta.env.VITE_SHOW_DEVTOOLS !== "false";
 
   return (
-    <html suppressHydrationWarning translate="no" data-brand={BRAND.id}>
+    <html suppressHydrationWarning translate="no">
       <head>
         <script
           dangerouslySetInnerHTML={{ __html: themePreferenceInitScript }}

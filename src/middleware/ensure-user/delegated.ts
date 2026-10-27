@@ -6,7 +6,6 @@ import {
 } from "@/server/auth/delegated-organization";
 import { eq } from "drizzle-orm";
 import type { EnsuredUserContext } from "./types";
-import { BRAND } from "@/shared/brand";
 
 const LOCAL_ADMIN_USER_ID = "local-admin";
 const LOCAL_ADMIN_EMAIL = "admin@localhost";
@@ -17,7 +16,7 @@ const LOCAL_ADMIN_EMAIL = "admin@localhost";
 // single user table means the OAuth `account` grant and every app table that
 // references `user.id` resolve the same way in all auth modes.
 function deriveUserName(email: string) {
-  return email.split("@")[0] || BRAND.name;
+  return email.split("@")[0] || "OpenSEO";
 }
 
 async function ensureUserRecord(userId: string, userEmail: string) {
@@ -72,9 +71,6 @@ async function resolveDelegatedContext(
     // Delegated auth (Cloudflare Access / local) has no unverified state.
     emailVerified: true,
     organizationId,
-    // Delegated orgs are one-implicit-user with no member rows; that user has
-    // full control of their own workspace.
-    role: "owner",
   };
 }
 
@@ -93,9 +89,6 @@ export async function resolveSharedWorkspaceContext(
     userEmail: ensuredEmail,
     emailVerified: true,
     organizationId,
-    // The Access policy is the authorization boundary; everyone it admits has
-    // full control of the shared workspace.
-    role: "owner",
   };
 }
 

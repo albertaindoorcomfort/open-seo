@@ -2,7 +2,8 @@ import type {
   ArchiveProjectInput,
   CreateProjectInput,
   RestoreProjectInput,
-  SetProjectWebsiteInput,
+  SetProjectDomainInput,
+  SetProjectMarketInput,
   UpdateProjectInput,
 } from "@/types/schemas/projects";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
@@ -145,6 +146,45 @@ export async function updateProject(
   }
 }
 
+/**
+ * Sets a project's domain on its own, for the dashboard hero's inline input.
+ * Writing just this column keeps the write from echoing a name/market the
+ * caller never edited.
+ */
+export async function setProjectDomain(
+  organizationId: string,
+  input: SetProjectDomainInput,
+) {
+  const domain = normalizeProjectDomain(input.domain);
+  if (domain === undefined) {
+    throw new AppError("VALIDATION_ERROR", "Enter a valid domain.");
+  }
+  const row = await ProjectRepository.updateProjectDomain(
+    input.projectId,
+    organizationId,
+    domain,
+  );
+  return mapProject(row);
+}
+
+/**
+ * Sets a project's default market on its own, for surfaces that only ask for
+ * the market (onboarding). Writing just these two columns keeps the write from
+ * echoing a name/domain the caller never edited.
+ */
+export async function setProjectMarket(
+  organizationId: string,
+  input: SetProjectMarketInput,
+) {
+  assertLanguageForLocation(input.locationCode, input.languageCode);
+  const row = await ProjectRepository.updateProjectMarket(
+    input.projectId,
+    organizationId,
+    { locationCode: input.locationCode, languageCode: input.languageCode },
+  );
+  return mapProject(row);
+}
+
 export async function archiveProject(
   organizationId: string,
   input: ArchiveProjectInput,
@@ -203,32 +243,4 @@ export async function getProjectForOrganization(
   }
 
   return mapProject(project);
-}
-
-// Project lookup that reveals which org owns it, for user-scoped credentials
-// (MCP API keys): the caller derives the org FROM the project and must then
-// authorize the user's membership in that org before acting on the result.
-export async function getProjectWithOrganization(projectId: string) {
-  const project = await ProjectRepository.getProjectById(projectId);
-  if (!project) return null;
-  return {
-    organizationId: project.organizationId,
-    project: mapProject(project),
-  };
-}
-
-export async function setProjectWebsite(
-  organizationId: string,
-  input: SetProjectWebsiteInput,
-) {
-  const domain = normalizeProjectDomain(input.domain);
-  if (!domain) throw new AppError("VALIDATION_ERROR", "Enter a valid domain.");
-  assertLanguageForLocation(input.locationCode, input.languageCode);
-  const row = await ProjectRepository.updateProjectWebsite(
-    input.projectId,
-    organizationId,
-    domain,
-    { locationCode: input.locationCode, languageCode: input.languageCode },
-  );
-  return mapProject(row);
 }

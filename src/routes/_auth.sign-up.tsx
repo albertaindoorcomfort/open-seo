@@ -21,7 +21,6 @@ import {
   HOSTED_PASSWORD_MIN_LENGTH,
 } from "@/lib/auth-options";
 import { z } from "zod";
-import { BRAND } from "@/shared/brand";
 
 const signUpSchema = z
   .object({
@@ -88,7 +87,7 @@ function SignUpPage() {
           redirect_to: redirectTo,
         });
         const resolvedName =
-          value.name.trim() || email.split("@")[0] || `${BRAND.name} User`;
+          value.name.trim() || email.split("@")[0] || "Lunar Optimize User";
         const verificationCallbackURL = new URL(
           "/verify-email",
           window.location.origin,
@@ -132,6 +131,11 @@ function SignUpPage() {
         captureClientEvent("auth:sign_up_success", {
           redirect_to: redirectTo,
         });
+        // No verification email configured: the server signed the user in.
+        if (result.data?.token) {
+          window.location.assign(postSignupRedirect);
+          return;
+        }
         void navigate({
           to: "/verify-email",
           search: getVerifyEmailSearch(email, postSignupRedirect),
@@ -168,9 +172,9 @@ function SignUpPage() {
           ) : (
             <div className="space-y-4">
               <p className="text-sm leading-relaxed text-base-content/60">
-                By signing up, you agree to our{" "}
+                Review Project Lunar&rsquo;s published{" "}
                 <a
-                  href="https://openseo.so/terms-and-conditions"
+                  href="https://lunar-project.com/terms"
                   target="_blank"
                   rel="noreferrer"
                   className="text-base-content underline underline-offset-2 hover:text-base-content/80 transition-colors"
@@ -179,14 +183,15 @@ function SignUpPage() {
                 </a>{" "}
                 and{" "}
                 <a
-                  href="https://openseo.so/privacy"
+                  href="https://lunar-project.com/privacy"
                   target="_blank"
                   rel="noreferrer"
                   className="text-base-content underline underline-offset-2 hover:text-base-content/80 transition-colors"
                 >
                   Privacy Policy
                 </a>
-                .
+                . Lunar Optimize subscription terms will be presented before
+                paid enrollment.
               </p>
 
               <p className="text-sm text-base-content/50">

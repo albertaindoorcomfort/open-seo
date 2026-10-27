@@ -7,8 +7,6 @@ import {
   invalidateSamSessions,
   samSessionsQueryOptions,
 } from "@/client/features/sam/samQueries";
-import { useSamBetaOptIn } from "./samBetaOptIn";
-import { BRAND } from "@/shared/brand";
 
 const BETA_NOTICE_DISMISSED_KEY = "sam-beta-notice-dismissed";
 
@@ -39,7 +37,7 @@ function BetaNotice() {
         </button>
       </div>
       <p className="mt-1.5 text-xs text-base-content/70">
-        For more powerful AI workflows, use the {BRAND.name} MCP with your own
+        For more powerful AI workflows, use the Lunar Optimize MCP with your own
         agent like Claude Code or Hermes.
       </p>
       <Link to="/ai" className="link link-primary mt-1.5 inline-block text-xs">
@@ -78,7 +76,6 @@ export function SamSidebarPanel({
   const navigate = useNavigate();
   const location = useLocation();
   const activeSessionId = (location.search as { s?: string }).s;
-  const optedIn = useSamBetaOptIn();
 
   const sessionsQuery = useQuery(samSessionsQueryOptions(projectId));
   const sessions = sessionsQuery.data ?? [];
@@ -110,16 +107,6 @@ export function SamSidebarPanel({
       }
     },
   });
-
-  // Until the user opts in, the chat route shows SamBetaGate; the tab just
-  // points there instead of offering a chat list that can't be used yet.
-  if (!optedIn) {
-    return (
-      <p className="px-4 py-6 text-center text-xs text-base-content/50">
-        Sam is in beta and opt-in. Open Chat to read more and decide.
-      </p>
-    );
-  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

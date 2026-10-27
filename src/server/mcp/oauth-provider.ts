@@ -28,7 +28,6 @@ import { getPublicOrigin } from "@/server/mcp/public-origin";
 import { handleAuthenticatedOpenSeoMcpRequest } from "@/server/mcp/transport";
 import { resolveHostedContext } from "@/middleware/ensure-user/hosted";
 import { handleMcpApiKeyRequest } from "@/server/mcp/api-key-auth";
-import { BRAND } from "@/shared/brand";
 
 const OAUTH_AUTHORIZE_PATH = "/api/auth/oauth2/authorize";
 const OAUTH_TOKEN_PATH = "/api/auth/oauth2/token";
@@ -334,9 +333,6 @@ async function handleOAuthConsentResponse(
     );
   }
 
-  // organizationId is only the fallback context for tools with no project
-  // argument; the hosted transport re-resolves it and stamps orgScope per
-  // request, so one authorization follows the user across every organization.
   const props = createWorkersOAuthMcpProps({
     userId: context.userId,
     userEmail: context.userEmail,
@@ -415,7 +411,7 @@ function createProvider(appFetch: AppFetch, resource: string) {
     resourceMetadata: {
       resource,
       scopes_supported: [MCP_SCOPE],
-      resource_name: `${BRAND.name} MCP`,
+      resource_name: "OpenSEO MCP",
     },
     tokenExchangeCallback: ({ props, requestedScope }) => {
       if (!requestedScope.includes(MCP_SCOPE)) {

@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BRAND } from "@/shared/brand";
 
 const DATAFORSEO_API_ACCESS_URL = "https://app.dataforseo.com/api-access";
 
@@ -17,8 +16,8 @@ function DataforseoApiKeyHelpPage() {
               Set up your DataForSEO API key
             </h1>
             <p className="text-sm text-base-content/70">
-              {BRAND.name} needs the <code>DATAFORSEO_API_KEY</code> secret
-              before keyword, domain, and SEO data workflows can run.
+              OpenSEO needs the <code>DATAFORSEO_API_KEY</code> secret before
+              keyword, domain, and SEO data workflows can run.
             </p>
           </div>
         </div>
@@ -63,7 +62,7 @@ function DataforseoApiKeyHelpPage() {
               <li>
                 In Cloudflare, go to <code>Compute</code> -&gt;{" "}
                 <code>Workers &amp; Pages</code>
-                and open your {BRAND.name} Worker.
+                and open your OpenSEO Worker.
               </li>
               <li>
                 Open <code>Settings</code>.

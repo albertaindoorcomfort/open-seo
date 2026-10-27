@@ -87,11 +87,16 @@ export function resolveGa4DateRange(
     -1,
   );
   let endDate = requestedDateRange?.endDate ?? lastCompleteDay;
-  const startDate = requestedDateRange?.startDate ?? shiftGa4Date(endDate, -27);
+  let startDate = requestedDateRange?.startDate ?? shiftGa4Date(endDate, -27);
   const warnings: string[] = [];
   if (endDate > lastCompleteDay) {
     endDate = lastCompleteDay;
     warnings.push("end_date_clamped");
+  }
+  const ninetyDayFloor = shiftGa4Date(endDate, -89);
+  if (startDate < ninetyDayFloor) {
+    startDate = ninetyDayFloor;
+    warnings.push("start_date_clamped");
   }
   if (startDate > endDate) {
     throw new Ga4ReportError(

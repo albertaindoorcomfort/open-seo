@@ -1,4 +1,5 @@
 import process from "node:process";
+import type { AppendixStatisticsRatesDataInfo } from "dataforseo-client";
 import { fetchUserData } from "@/server/lib/dataforseo/appendix";
 import { loadLocalEnv, parseArgs } from "./cli-utils";
 
@@ -51,7 +52,7 @@ async function main() {
 }
 
 // DataForSEO groups spend under `total_<function>` keys on each statistics
-// window.
+// window. Field names mirror the SDK's AppendixStatisticsRatesDataInfo.
 const FUNCTION_TOTALS: ReadonlyArray<{ label: string; key: string }> = [
   { label: "serp", key: "total_serp" },
   { label: "keywords_data", key: "total_keywords_data" },
@@ -69,7 +70,7 @@ const FUNCTION_TOTALS: ReadonlyArray<{ label: string; key: string }> = [
 
 function printFunctionTable(
   heading: string,
-  stats: Record<string, unknown> | null | undefined,
+  stats: AppendixStatisticsRatesDataInfo | undefined,
 ) {
   console.log("");
   console.log(heading);
@@ -103,7 +104,7 @@ function readNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function formatUsd(value: number | null | undefined): string {
+function formatUsd(value: number | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "$0.00";
   return `$${value.toFixed(2)}`;
 }

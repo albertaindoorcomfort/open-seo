@@ -18,12 +18,6 @@ const inputSchema = {
     .min(1)
     .max(2000)
     .describe("Keywords to track. Existing and repeated keywords are skipped."),
-  matchCase: z
-    .boolean()
-    .optional()
-    .describe(
-      "Track the keywords exactly as typed instead of lowercasing them. Defaults to false. Use for brand names where Google's results differ by capitalization; a cased keyword is tracked and billed separately from its lowercase form.",
-    ),
   maxEstimatedScheduledCheckCredits: z
     .number()
     .int()
@@ -50,7 +44,7 @@ export const addRankTrackingKeywordsTool = {
         added: z.number(),
         addedIds: z.array(z.string()),
         scheduledEstimate: z
-          .looseObject({
+          .object({
             scheduleInterval: z.enum(["daily", "weekly", "monthly"]),
             costUsd: z.number(),
             costCredits: z.number(),
@@ -78,7 +72,6 @@ export const addRankTrackingKeywordsTool = {
         maxEstimatedScheduledCheckCredits:
           args.maxEstimatedScheduledCheckCredits,
       },
-      args.matchCase,
     );
     const requested = args.keywords.length;
     return mcpResponse({

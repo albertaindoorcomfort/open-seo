@@ -1,7 +1,6 @@
 import {
   Bookmark,
   Bot,
-  Brain,
   ClipboardCheck,
   FileText,
   Globe,
@@ -28,6 +27,11 @@ const projectNavItems = [
     to: "/p/$projectId/keywords" as const,
     label: "Keyword Research",
     icon: Search,
+  },
+  {
+    to: "/p/$projectId/content-score" as const,
+    label: "Content Score",
+    icon: FileText,
   },
   {
     to: "/p/$projectId/saved" as const,
@@ -69,30 +73,17 @@ const projectNavItems = [
     label: "Prompt Explorer",
     icon: MessageSquare,
   },
-  {
-    to: "/p/$projectId/reports" as const,
-    label: "Reports",
-    icon: FileText,
-  },
-  {
-    to: "/p/$projectId/context" as const,
-    label: "Context",
-    icon: Brain,
-  },
 ] as const;
 
-// Project-independent. Rendered inside the project "AI" group when a project
-// is selected, and on its own (connectNavGroup) when none is.
 const aiNavItem = linkOptions({
   to: "/ai" as const,
-  label: "Agent setup",
+  label: "AI & MCP",
   icon: Bot,
 });
 
-// Shown only when no project is selected; with a project, Agent setup lives in
-// the "AI" group below.
+// Always-visible sidebar group (not project-scoped, unlike the groups below).
 export const connectNavGroup = {
-  label: "AI",
+  label: "Connect",
   items: [aiNavItem],
 };
 
@@ -122,6 +113,7 @@ export function getProjectNavGroups(projectId: string) {
       label: "Research",
       items: [
         byPath("/p/$projectId/keywords"),
+        byPath("/p/$projectId/content-score"),
         byPath("/p/$projectId/domain"),
         byPath("/p/$projectId/backlinks"),
         byPath("/p/$projectId/brand-lookup"),
@@ -135,14 +127,6 @@ export function getProjectNavGroups(projectId: string) {
         byPath("/p/$projectId/rank-tracking"),
         byPath("/p/$projectId/saved"),
         byPath("/p/$projectId/audit"),
-      ],
-    },
-    {
-      label: "AI",
-      items: [
-        byPath("/p/$projectId/reports"),
-        byPath("/p/$projectId/context"),
-        aiNavItem,
       ],
     },
   ];

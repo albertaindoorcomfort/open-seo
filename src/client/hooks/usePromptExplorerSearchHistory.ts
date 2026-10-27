@@ -1,4 +1,3 @@
-import { identity, sortBy } from "remeda";
 import { z } from "zod";
 import { useTimestampedSearchHistory } from "@/client/hooks/useTimestampedSearchHistory";
 import {
@@ -22,8 +21,8 @@ export type PromptExplorerSearchHistoryItem = PromptExplorerSearchBody & {
 
 function sameModels(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
-  const sortedA = sortBy(a, identity());
-  const sortedB = sortBy(b, identity());
+  const sortedA = a.toSorted();
+  const sortedB = b.toSorted();
   return sortedA.every((model, index) => model === sortedB[index]);
 }
 

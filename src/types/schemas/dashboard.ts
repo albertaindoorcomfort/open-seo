@@ -1,19 +1,13 @@
 import { z } from "zod";
 
-export const dashboardProjectInputSchema = z.object({
-  projectId: z.string().min(1),
-});
-
-export const dashboardSetupStepSchema = z.enum([
+export const dashboardHeroStepSchema = z.enum([
   "domain",
-  "project",
-  "competitor",
   "mcp",
   "gsc",
-  "team",
+  "competitor",
 ]);
-export type DashboardSetupStep = z.infer<typeof dashboardSetupStepSchema>;
-export const dashboardStepDismissalSchema = dashboardProjectInputSchema.extend({
-  step: dashboardSetupStepSchema,
-  dismissed: z.boolean(),
+export type DashboardHeroStep = z.infer<typeof dashboardHeroStepSchema>;
+
+export const dashboardProjectInputSchema = z.object({
+  projectId: z.string().min(1),
 });

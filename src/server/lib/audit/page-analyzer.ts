@@ -26,15 +26,6 @@ const HEADING_LEVELS: Record<string, number> = {
   h6: 6,
 };
 const MAX_ANCHOR_CHARS = 200;
-/**
- * Per-page caps on the extracted collections. Crawler-trap and mega-menu
- * pages can carry thousands of links/images per page, and crawled pages sit
- * in memory in 25-page persist batches — uncapped collections were part of
- * the audit engine's exceededMemory profile. Counts derived from these
- * arrays saturate at the cap on such pathological pages.
- */
-const MAX_EXTRACTED_LINKS = 1_000;
-const MAX_EXTRACTED_IMAGES = 1_000;
 
 interface OpenAnchor {
   href: string;
@@ -112,7 +103,6 @@ export function analyzeHtml(
     if (!openAnchor) return;
     const { href, rel, text } = openAnchor;
     openAnchor = null;
-    if (linksByTarget.size >= MAX_EXTRACTED_LINKS) return;
     const resolved = normalizeUrl(href, pageUrl);
     if (!resolved || linksByTarget.has(resolved)) return;
     const anchor = text
@@ -158,12 +148,10 @@ export function analyzeHtml(
             handleLinkTag(attribs);
             break;
           case "img":
-            if (images.length < MAX_EXTRACTED_IMAGES) {
-              images.push({
-                src: attribs["src"] ?? null,
-                alt: "alt" in attribs ? attribs["alt"] : null,
-              });
-            }
+            images.push({
+              src: attribs["src"] ?? null,
+              alt: "alt" in attribs ? attribs["alt"] : null,
+            });
             break;
           case "script":
             if (attribs["type"] === "application/ld+json") {

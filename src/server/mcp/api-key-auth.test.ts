@@ -6,7 +6,7 @@ import type { handleAuthenticatedOpenSeoMcpRequest } from "@/server/mcp/transpor
 const mocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(),
   getHostedUser: vi.fn(),
-  resolveExistingActiveHostedOrganization: vi.fn(),
+  getOrCreateDefaultHostedOrganization: vi.fn(),
   recordMcpAuthorized: vi.fn(),
   handleAuthenticatedOpenSeoMcpRequest:
     vi.fn<typeof handleAuthenticatedOpenSeoMcpRequest>(),
@@ -29,8 +29,8 @@ vi.mock("@/server/auth/repositories/AuthRepository", () => ({
 }));
 
 vi.mock("@/server/auth/default-hosted-organization", () => ({
-  resolveExistingActiveHostedOrganization:
-    mocks.resolveExistingActiveHostedOrganization,
+  getOrCreateDefaultHostedOrganization:
+    mocks.getOrCreateDefaultHostedOrganization,
 }));
 
 vi.mock("@/server/features/activation/mcpActivation", () => ({
@@ -63,10 +63,7 @@ describe("handleMcpApiKeyRequest", () => {
       email: "person@example.com",
       name: "Person",
     });
-    mocks.resolveExistingActiveHostedOrganization.mockResolvedValue({
-      organizationId: "org-1",
-      role: "owner",
-    });
+    mocks.getOrCreateDefaultHostedOrganization.mockResolvedValue("org-1");
     mocks.recordMcpAuthorized.mockResolvedValue(undefined);
     mocks.handleAuthenticatedOpenSeoMcpRequest.mockResolvedValue(
       new Response("mcp response"),
@@ -87,8 +84,9 @@ describe("handleMcpApiKeyRequest", () => {
     expect(mocks.verifyApiKey).toHaveBeenCalledWith({
       body: { key: "oseo_secret" },
     });
-    expect(mocks.resolveExistingActiveHostedOrganization).toHaveBeenCalledWith(
+    expect(mocks.getOrCreateDefaultHostedOrganization).toHaveBeenCalledWith(
       "user-1",
+      expect.any(Function),
     );
     expect(mocks.recordMcpAuthorized).toHaveBeenCalledWith("org-1");
     expect(mocks.handleAuthenticatedOpenSeoMcpRequest).toHaveBeenCalledTimes(1);
@@ -102,7 +100,6 @@ describe("handleMcpApiKeyRequest", () => {
         userId: "user-1",
         userEmail: "person@example.com",
         organizationId: "org-1",
-        role: "owner",
         scopes: [...MCP_OAUTH_SCOPES],
         clientId: "api_key",
         baseUrl: "https://app.openseo.so",
@@ -128,27 +125,6 @@ describe("handleMcpApiKeyRequest", () => {
     });
   });
 
-  it("returns 403 when the user has no organization membership", async () => {
-    mocks.verifyApiKey.mockResolvedValue({
-      valid: true,
-      error: null,
-      key: { referenceId: "user-1" },
-    });
-    mocks.resolveExistingActiveHostedOrganization.mockResolvedValue(null);
-
-    const response = await handleMcpApiKeyRequest(
-      request({ Authorization: "Bearer oseo_secret" }),
-      env,
-      ctx,
-    );
-
-    expect(response?.status).toBe(403);
-    await expect(response?.json()).resolves.toMatchObject({
-      error: "account_access_revoked",
-    });
-    expect(mocks.handleAuthenticatedOpenSeoMcpRequest).not.toHaveBeenCalled();
-  });
-
   it("returns 401 for an invalid key without invoking the transport", async () => {
     mocks.verifyApiKey.mockResolvedValue({
       valid: false,
@@ -170,23 +146,25 @@ describe("handleMcpApiKeyRequest", () => {
     expect(mocks.handleAuthenticatedOpenSeoMcpRequest).not.toHaveBeenCalled();
   });
 
-  it("returns 429 with Retry-After when the MCP_RATE_LIMIT binding denies", async () => {
+  it("returns 429 with Retry-After when Better Auth rate-limits the key", async () => {
     mocks.verifyApiKey.mockResolvedValue({
-      valid: true,
-      error: null,
-      key: { referenceId: "user-1" },
+      valid: false,
+      error: {
+        code: "RATE_LIMITED",
+        message: "Rate limit exceeded",
+        details: { tryAgainIn: 30500 },
+      },
+      key: null,
     });
-    const limit = vi.fn().mockResolvedValue({ success: false });
 
     const response = await handleMcpApiKeyRequest(
       request({ "x-api-key": "oseo_limited" }),
-      { MCP_RATE_LIMIT: { limit } },
+      env,
       ctx,
     );
 
-    expect(limit).toHaveBeenCalledWith({ key: "user-1" });
     expect(response?.status).toBe(429);
-    expect(response?.headers.get("Retry-After")).toBe("60");
+    expect(response?.headers.get("Retry-After")).toBe("31");
     await expect(response?.json()).resolves.toMatchObject({
       error: "rate_limited",
     });

@@ -3,7 +3,6 @@ import { db } from "@/db";
 import { account } from "@/db/schema";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
 import { AppError } from "@/server/lib/errors";
-import { getServiceAccountGrantForUser } from "@/server/features/google/serviceAccountGrant";
 import {
   createGscClient,
   type GscSite,
@@ -27,7 +26,6 @@ import type {
   GscSearchAnalyticsRequest,
   GscSearchAnalyticsRow,
 } from "@/server/lib/gscClient";
-import { BRAND } from "@/shared/brand";
 
 const SITE_UNVERIFIED_PERMISSION = "siteUnverifiedUser";
 
@@ -43,7 +41,6 @@ type GscSiteListResult = {
     accountId: string;
     email: string | null;
     requiresReconnect: boolean;
-    propertiesUnavailable: boolean;
     sites: GscSite[];
   }>;
 };
@@ -56,7 +53,6 @@ async function getConnection(projectId: string): Promise<GscConnection | null> {
 /** Whether this user has linked a google-search-console grant (regardless of
  *  whether they've picked a property yet). Drives the connect-vs-pick UI. */
 async function userHasGrant(userId: string): Promise<boolean> {
-  if (await getServiceAccountGrantForUser(userId)) return true;
   const rows = await db
     .select({ id: account.id })
     .from(account)
@@ -71,24 +67,15 @@ async function userHasGrant(userId: string): Promise<boolean> {
 }
 
 async function listGrantsForUser(userId: string) {
-  const [oauthGrants, serviceAccount] = await Promise.all([
-    db
-      .select({ id: account.id, accountId: account.accountId })
-      .from(account)
-      .where(
-        and(
-          eq(account.userId, userId),
-          eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
-        ),
+  return db
+    .select({ id: account.id, accountId: account.accountId })
+    .from(account)
+    .where(
+      and(
+        eq(account.userId, userId),
+        eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
       ),
-    getServiceAccountGrantForUser(userId),
-  ]);
-  return serviceAccount
-    ? [
-        ...oauthGrants,
-        { id: serviceAccount.id, accountId: serviceAccount.accountId },
-      ]
-    : oauthGrants;
+    );
 }
 
 /** Expected ways a stored grant fails to reach Search Console: no token could be
@@ -125,7 +112,6 @@ async function listSitesForUserWithGrantStatus(
           accountId: grant.accountId,
           email,
           requiresReconnect: false,
-          propertiesUnavailable: false,
           sites,
         };
       } catch (error) {
@@ -139,8 +125,7 @@ async function listSitesForUserWithGrantStatus(
         return {
           accountId: grant.accountId,
           email: null,
-          requiresReconnect: isExpectedGrantFailure(error),
-          propertiesUnavailable: !isExpectedGrantFailure(error),
+          requiresReconnect: true,
           sites: [],
         };
       }
@@ -162,7 +147,7 @@ async function setSite(input: {
   if (!grants.some((grant) => grant.accountId === input.accountId)) {
     throw new AppError(
       "NOT_FOUND",
-      `That Google account isn't connected to your ${BRAND.name} account.`,
+      "That Google account isn't connected to your OpenSEO account.",
     );
   }
 
@@ -200,8 +185,41 @@ async function setSite(input: {
   });
 }
 
-async function disconnect(input: { projectId: string }): Promise<void> {
+async function unlinkUserGrant(
+  userId: string,
+  gscAccountId: string,
+): Promise<void> {
+  await db
+    .delete(account)
+    .where(
+      and(
+        eq(account.userId, userId),
+        eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
+        eq(account.accountId, gscAccountId),
+      ),
+    );
+}
+
+async function disconnect(input: {
+  projectId: string;
+  userId: string;
+}): Promise<void> {
+  const connection = await GscConnectionRepository.getByProjectId(
+    input.projectId,
+  );
   await GscConnectionRepository.deleteByProjectId(input.projectId);
+  if (
+    connection?.gscAccountId &&
+    connection.connectedByUserId === input.userId
+  ) {
+    const stillUsed = await GscConnectionRepository.existsForConnectorAccount(
+      input.userId,
+      connection.gscAccountId,
+    );
+    if (!stillUsed) {
+      await unlinkUserGrant(input.userId, connection.gscAccountId);
+    }
+  }
 }
 
 /** Pass-through of GSC `searchAnalytics.query` for a project's connected property. */

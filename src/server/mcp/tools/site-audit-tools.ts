@@ -1,4 +1,3 @@
-import { sort } from "remeda";
 import { z } from "zod";
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
 import { AuditService } from "@/server/features/audit/services/AuditService";
@@ -9,7 +8,6 @@ import {
   getIssueDescriptor,
   ISSUE_SEVERITY_ORDER,
 } from "@/shared/audit-issues";
-import { PAGE_FETCH_CLASSES } from "@/shared/audit-fetch-class";
 import { mcpResponse } from "@/server/mcp/formatters";
 import { buildProjectMeta } from "@/server/mcp/context";
 import {
@@ -18,7 +16,6 @@ import {
 } from "@/server/mcp/output-schemas";
 import { withMcpProjectAuth } from "@/server/mcp/project-auth";
 import { projectIdSchema } from "@/server/mcp/schemas";
-import { BRAND } from "@/shared/brand";
 
 const auditIdSchema = z
   .string()
@@ -71,19 +68,17 @@ export const runSiteAuditTool = {
   config: {
     title: "Run site audit",
     description:
-      "Start a site audit: crawls the site (robots.txt-aware, same-origin), checks every page for SEO issues (broken links, duplicate/missing titles and descriptions, redirect chains, orphan pages, canonical problems, thin content, and more), and optionally runs Lighthouse on a sample of pages. Runs in the background — poll get_audit_status, then read get_audit_issues. If the site rate limits the crawler it slows down and retries; pages it still cannot read are honestly flagged as blocked or rate-limited rather than misreported.",
+      "Start a site audit: crawls the site (robots.txt-aware, same-origin), checks every page for SEO issues (broken links, duplicate/missing titles and descriptions, redirect chains, orphan pages, canonical problems, thin content, and more), and optionally runs Lighthouse on a sample of pages. Runs in the background — poll get_audit_status, then read get_audit_issues. If the site blocks our crawler, pages are honestly flagged as blocked rather than misreported.",
     inputSchema: runInputSchema,
     outputSchema: z
       .object({
-        // Expected refusal responses (for example, account audit capacity)
-        // do not start an audit and therefore have no id.
-        auditId: z.string().optional(),
+        auditId: z.string(),
         ...optionalMetaOutputSchema,
       })
       .passthrough(),
     annotations: {
       readOnlyHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
       destructiveHint: false,
     },
   },
@@ -92,7 +87,9 @@ export const runSiteAuditTool = {
     // many-minute wait, which chat agents handle badly. The app UI passes its
     // own explicit lighthouseStrategy, so this default only governs agents.
     const lighthouseStrategy = (args.runLighthouse ?? false) ? "auto" : "none";
-    const limitTier = await AuditService.resolveAuditLimitTier(context.billing);
+    const limitTier = await AuditService.resolveAuditLimitTier(
+      context.auth.organizationId,
+    );
     let auditId: string;
     try {
       ({ auditId } = await AuditService.startAudit({
@@ -105,17 +102,12 @@ export const runSiteAuditTool = {
         limitTier,
       }));
     } catch (error) {
-      // Expected refusals become readable answers instead of protocol errors:
-      // no audit started, so there is no auditId to report.
-      const refusalText =
-        error instanceof AppError && error.code === "AUDIT_CAPACITY_REACHED"
-          ? "Audit capacity reached for this account — delete old audits in the dashboard to free capacity, then try again."
-          : error instanceof AppError && error.code === "AUDIT_ALREADY_RUNNING"
-            ? "This account is at its limit of concurrently running audits. Poll get_audit_status until one finishes, then try again."
-            : null;
-      if (refusalText) {
+      if (
+        error instanceof AppError &&
+        error.code === "AUDIT_CAPACITY_REACHED"
+      ) {
         return mcpResponse({
-          text: refusalText,
+          text: "Audit capacity reached for this account — delete old audits in the dashboard to free capacity, then try again.",
           meta: buildProjectMeta(
             context,
             args.projectId,
@@ -163,7 +155,8 @@ export const getAuditStatusTool = {
   name: "get_audit_status",
   config: {
     title: "Get site audit status",
-    description: `Check the progress of a site audit (phase, pages crawled, Lighthouse progress). Free — reads ${BRAND.name} state and may reconcile a dead workflow by marking its audit failed. Omit auditId for the most recent audit.`,
+    description:
+      "Check the progress of a site audit (phase, pages crawled, Lighthouse progress). Free — reads OpenSEO state. Omit auditId for the most recent audit.",
     inputSchema: statusInputSchema,
     outputSchema: z
       .object({
@@ -172,7 +165,7 @@ export const getAuditStatusTool = {
       })
       .passthrough(),
     annotations: {
-      readOnlyHint: false,
+      readOnlyHint: true,
       openWorldHint: false,
       destructiveHint: false,
     },
@@ -237,7 +230,8 @@ export const getAuditIssuesTool = {
   name: "get_audit_issues",
   config: {
     title: "Get site audit issues",
-    description: `Read the prioritized issue report from a completed site audit. Every issue carries a how_to_fix with concrete remediation steps an agent can act on. Free — reads ${BRAND.name} state. Omit auditId for the most recent audit.`,
+    description:
+      "Read the prioritized issue report from a completed site audit. Every issue carries a how_to_fix with concrete remediation steps an agent can act on. Free — reads OpenSEO state. Omit auditId for the most recent audit.",
     inputSchema: issuesInputSchema,
     outputSchema: z
       .object({
@@ -259,8 +253,7 @@ export const getAuditIssuesTool = {
       issueType: args.issueType,
     });
     // Severity-first so truncation drops info rows, never critical ones.
-    const rows = sort(
-      unsorted,
+    const rows = unsorted.toSorted(
       (a, b) =>
         ISSUE_SEVERITY_ORDER[a.severity] - ISSUE_SEVERITY_ORDER[b.severity] ||
         a.issueType.localeCompare(b.issueType),
@@ -270,8 +263,8 @@ export const getAuditIssuesTool = {
     for (const row of rows) {
       counts.set(row.issueType, (counts.get(row.issueType) ?? 0) + 1);
     }
-    const summary = sort(
-      Array.from(counts.entries()).map(([issueType, count]) => {
+    const summary = Array.from(counts.entries())
+      .map(([issueType, count]) => {
         const descriptor = getIssueDescriptor(issueType);
         return {
           issueType,
@@ -279,11 +272,12 @@ export const getAuditIssuesTool = {
           severity: descriptor?.severity ?? "info",
           count,
         };
-      }),
-      (a, b) =>
-        ISSUE_SEVERITY_ORDER[a.severity] - ISSUE_SEVERITY_ORDER[b.severity] ||
-        b.count - a.count,
-    );
+      })
+      .toSorted(
+        (a, b) =>
+          ISSUE_SEVERITY_ORDER[a.severity] - ISSUE_SEVERITY_ORDER[b.severity] ||
+          b.count - a.count,
+      );
 
     const limit = args.limit ?? 200;
     const issues = rows.slice(0, limit).map((row) => {
@@ -333,10 +327,10 @@ const pagesInputSchema = {
   projectId: projectIdSchema,
   auditId: auditIdSchema,
   fetchClass: z
-    .enum(PAGE_FETCH_CLASSES)
+    .enum(["ok", "blocked", "error"])
     .optional()
     .describe(
-      'Filter by fetch outcome ("blocked" = the site\'s bot protection challenged the crawler; "rate_limited" = a 429 prevented the crawler from reading the page).',
+      'Filter by fetch outcome ("blocked" = the site\'s bot protection challenged the crawler).',
     ),
   statusCode: z
     .number()
@@ -362,7 +356,8 @@ export const getAuditPagesTool = {
   name: "get_audit_pages",
   config: {
     title: "Get site audit pages",
-    description: `List crawled pages from a site audit with per-page SEO data (status, title, description, word count, indexability, crawl depth, link counts). Free — reads ${BRAND.name} state. Omit auditId for the most recent audit.`,
+    description:
+      "List crawled pages from a site audit with per-page SEO data (status, title, description, word count, indexability, crawl depth, link counts). Free — reads OpenSEO state. Omit auditId for the most recent audit.",
     inputSchema: pagesInputSchema,
     outputSchema: z
       .object({

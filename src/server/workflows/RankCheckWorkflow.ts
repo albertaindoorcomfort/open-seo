@@ -168,37 +168,29 @@ async function finalizeRankCheckRun(input: {
   const keywordsTotal = run.keywordsTotal || keywordsChecked;
   const incompleteCount = keywordsTotal - keywordsChecked;
 
-  // Batch steps record the first per-keyword rejection on the run as it
-  // happens, so a failed run shows the vendor's reason rather than a count.
-  const keywordError = run.errorMessage ?? input.batchError;
-  const status =
-    keywordsChecked === 0 && keywordsTotal > 0 ? "failed" : "completed";
-  const errorMessage =
-    status === "failed"
-      ? (keywordError ?? "No keywords could be checked.")
-      : incompleteCount > 0
-        ? `Checked ${keywordsChecked} of ${keywordsTotal} keyword(s)${keywordError ? `: ${keywordError}` : ""}`
-        : null;
+  let errorMessage: string | undefined;
+  if (input.batchError) {
+    errorMessage = `Completed ${keywordsChecked} of ${keywordsTotal} keyword(s). Error: ${input.batchError}`;
+  } else if (incompleteCount > 0) {
+    errorMessage = `${incompleteCount} keyword(s) could not be checked`;
+  }
 
   // Flipping status away from 'pending'/'running' is what releases the
   // partial-index slot for the next run.
   await RankTrackingRepository.updateRun(input.runId, {
-    status,
+    status: "completed",
     keywordsChecked,
     completedAt: nowIso,
-    errorMessage,
+    ...(errorMessage ? { errorMessage } : {}),
   });
 
-  // Clear any previous skip reason on success. A failed run must not advance
-  // lastCheckedAt — nothing was actually checked.
+  // Clear any previous skip reason on success.
   // Note: nextCheckAt is NOT set here — the cron handler advances it eagerly
   // before starting the workflow to prevent retry storms.
-  if (status === "completed") {
-    await RankTrackingRepository.updateConfig(input.configId, input.projectId, {
-      lastCheckedAt: nowIso,
-      lastSkipReason: null,
-    });
-  }
+  await RankTrackingRepository.updateConfig(input.configId, input.projectId, {
+    lastCheckedAt: nowIso,
+    lastSkipReason: null,
+  });
 
   // One-line summary per run so fallback rates are visible in Workers Logs.
   // Keys match the PostHog event properties for log/event correlation.
@@ -210,7 +202,7 @@ async function finalizeRankCheckRun(input: {
     ? ` error="${errorMessage.replace(/\s+/g, " ").slice(0, 200)}"`
     : "";
   console.log(
-    `[rank-check] ${input.runId} ${status} org=${input.billingCustomer.organizationId} project=${input.projectId} trigger=${input.trigger} keywords=${keywordsChecked}/${keywordsTotal}${queueSummary}${errorSummary}`,
+    `[rank-check] ${input.runId} completed org=${input.billingCustomer.organizationId} project=${input.projectId} trigger=${input.trigger} keywords=${keywordsChecked}/${keywordsTotal}${queueSummary}${errorSummary}`,
   );
 
   await captureServerEvent({
@@ -219,7 +211,7 @@ async function finalizeRankCheckRun(input: {
     organizationId: input.billingCustomer.organizationId,
     properties: {
       project_id: input.projectId,
-      status,
+      status: "completed",
       trigger: input.trigger,
       keywords_checked: keywordsChecked,
       ...(input.queueStats

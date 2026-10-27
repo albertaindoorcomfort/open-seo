@@ -1,8 +1,6 @@
 import { getDatabaseProvider } from "./provider";
 import * as sqliteApp from "./app.schema";
 import * as sqliteProjectContext from "./project-context.schema";
-import * as sqliteReports from "./reports.schema";
-import * as sqliteReportTemplates from "./report-templates.schema";
 import * as sqliteAudit from "./audit.schema";
 import * as sqliteSam from "./sam.schema";
 import * as sqliteAuth from "./better-auth-schema";
@@ -12,8 +10,6 @@ import * as sqliteGsc from "./gsc.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
-import * as pgReports from "./pg/reports.schema";
-import * as pgReportTemplates from "./pg/report-templates.schema";
 import * as pgAudit from "./pg/audit.schema";
 import * as pgSam from "./pg/sam.schema";
 import * as pgAuth from "./pg/better-auth-schema";
@@ -34,8 +30,6 @@ import * as pgTelemetry from "./pg/telemetry.schema";
 // parity test is its drift guard.
 type AppSchema = typeof sqliteApp &
   typeof sqliteProjectContext &
-  typeof sqliteReports &
-  typeof sqliteReportTemplates &
   typeof sqliteAudit &
   typeof sqliteSam &
   typeof sqliteAuth &
@@ -49,8 +43,6 @@ const runtimeSchema =
     ? {
         ...pgApp,
         ...pgProjectContext,
-        ...pgReports,
-        ...pgReportTemplates,
         ...pgAudit,
         ...pgSam,
         ...pgAuth,
@@ -62,8 +54,6 @@ const runtimeSchema =
     : {
         ...sqliteApp,
         ...sqliteProjectContext,
-        ...sqliteReports,
-        ...sqliteReportTemplates,
         ...sqliteAudit,
         ...sqliteSam,
         ...sqliteAuth,
@@ -89,14 +79,11 @@ export const {
   rankSnapshots,
   organizationActivationState,
   projectActivationState,
-  dashboardStepDismissals,
   backlinkSnapshots,
   projectContextSections,
   projectCompetitors,
   projectKeyPages,
   projectResearchLog,
-  reports,
-  reportTemplates,
   audits,
   auditPages,
   auditIssues,

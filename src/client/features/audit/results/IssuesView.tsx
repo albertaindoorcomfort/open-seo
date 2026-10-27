@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { sort } from "remeda";
 import {
   getIssueDescriptor,
   ISSUE_SEVERITY_ORDER,
@@ -69,8 +68,7 @@ function groupIssues(issues: AuditIssueRow[]): IssueGroup[] {
     group.issues.push(issue);
   }
 
-  return sort(
-    Array.from(groups.values()),
+  return Array.from(groups.values()).toSorted(
     (a, b) =>
       ISSUE_SEVERITY_ORDER[a.severity] - ISSUE_SEVERITY_ORDER[b.severity] ||
       b.issues.length - a.issues.length,

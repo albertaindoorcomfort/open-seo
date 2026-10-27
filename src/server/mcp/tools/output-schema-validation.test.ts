@@ -1,18 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Ajv } from "@modelcontextprotocol/client/validators/ajv";
-import { z } from "zod";
 import { AppError } from "@/server/lib/errors";
 import { objectSchema } from "@/server/mcp/output-schemas";
 import * as researchTools from "./dataforseo-research-tools";
 import * as localSeoTools from "./local-seo-tools";
 import { getBacklinksProfileTool } from "./get-backlinks-profile";
-import { getRankTrackerTool } from "./get-rank-tracker";
-import {
-  getProjectContextTool,
-  updateProjectContextTool,
-} from "./project-context";
-import { getSearchConsolePerformanceTool } from "./search-console-tools";
-import { runSiteAuditTool } from "./site-audit-tools";
 import { makeToolContext } from "./tool-test-support";
 
 const mocks = vi.hoisted(() => ({
@@ -22,9 +13,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("cloudflare:workers", () => ({
   env: {},
-  DurableObject: class {
-    readonly ctx = null;
-  },
 }));
 
 vi.mock("@/server/features/projects/services/ProjectService", () => ({
@@ -154,96 +142,6 @@ describe("DataForSEO research tool output schemas", () => {
     });
 
     expect(result.success).toBe(true);
-  });
-});
-
-describe("MCP output schemas with expected missing fields", () => {
-  // Google omits position for the discover and googleNews search types.
-  it("accepts Search Console rows without a position", async () => {
-    const schema = objectSchema(
-      getSearchConsolePerformanceTool.config.outputSchema,
-    );
-
-    const result = await schema.safeParseAsync({
-      ok: true,
-      rows: [{ clicks: 0, impressions: 1, ctr: 0 }],
-    });
-
-    expect(result.success).toBe(true);
-  });
-
-  // Refusals (for example, audit capacity) never start an audit, so they
-  // have no id to report.
-  it("accepts a site-audit refusal without an audit id", async () => {
-    const schema = objectSchema(runSiteAuditTool.config.outputSchema);
-
-    const result = await schema.safeParseAsync({
-      meta: {
-        organizationId: "org_123",
-        projectId: "project_123",
-      },
-    });
-
-    expect(result.success).toBe(true);
-  });
-});
-
-describe("MCP output compatibility across deployments", () => {
-  // Clients cache the JSON Schema from tools/list. Zod's safeParse alone
-  // misses this regression: it strips unknown fields, while its exported
-  // output schema rejects them unless the object allows additional fields.
-  const validator = new Ajv({ strict: false });
-
-  it.each([getProjectContextTool, updateProjectContextTool])(
-    "$name accepts new context fields while validating known fields",
-    (tool) => {
-      const validate = validator.compile(
-        z.toJSONSchema(objectSchema(tool.config.outputSchema), {
-          target: "draft-7",
-        }),
-      );
-      const context = {
-        sections: [],
-        missingSections: [],
-        customSections: [],
-        competitors: [],
-        keyPages: [],
-        researchLog: [],
-        reportTemplates: [],
-        futureContextField: [],
-      };
-
-      expect(validate(context)).toBe(true);
-      expect(validate({ ...context, sections: "invalid" })).toBe(false);
-      const { sections: _sections, ...missingSections } = context;
-      expect(validate(missingSections)).toBe(false);
-    },
-  );
-
-  it("get_rank_tracker accepts new run fields while validating known fields", () => {
-    const validate = validator.compile(
-      z.toJSONSchema(getRankTrackerTool.config.outputSchema, {
-        target: "draft-7",
-      }),
-    );
-    const run = {
-      id: "run_1",
-      lastCheckedAt: null,
-      completedAt: "2026-09-17T00:00:00.000Z",
-      status: "completed",
-      errorMessage: null,
-      futureRunField: 1,
-    };
-    const detail = { config: {}, results: { rows: [], run } };
-
-    expect(validate(detail)).toBe(true);
-    expect(validate({ configs: [] })).toBe(true);
-    expect(validate({ results: { rows: [], run: null } })).toBe(true);
-    expect(
-      validate({ results: { rows: [], run: { ...run, status: "invalid" } } }),
-    ).toBe(false);
-    const { completedAt: _completedAt, ...incompleteRun } = run;
-    expect(validate({ results: { rows: [], run: incompleteRun } })).toBe(false);
   });
 });
 
