@@ -8,7 +8,7 @@ import { getEnvValueSync } from "@/server/lib/runtime-env";
 export const CRON_TRIGGER_PATH = "/internal/cron";
 
 // Must match the triggers in wrangler.jsonc.
-export const CRON_EXPRESSIONS = ["*/5 * * * *", "17 3 * * *"] as const;
+const CRON_EXPRESSIONS = ["*/5 * * * *", "17 3 * * *"] as const;
 
 const MIN_SECRET_LENGTH = 32;
 

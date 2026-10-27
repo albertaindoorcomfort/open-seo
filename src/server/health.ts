@@ -36,7 +36,7 @@ function configured(env: object, name: string): DependencyState {
   return getEnvValueSync(env, name) ? "ok" : "not_configured";
 }
 
-export async function checkDependencies(env: object): Promise<Dependency[]> {
+async function checkDependencies(env: object): Promise<Dependency[]> {
   const bindings = env as HealthEnv;
   const [database, kv, storage] = await Promise.all([
     bindings.DB

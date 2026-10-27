@@ -1,4 +1,4 @@
-import { crawlerName } from "@/shared/brand";
+import { crawlerName } from "./brand";
 /**
  * Registry of site-audit issue types.
  *

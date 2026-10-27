@@ -3,7 +3,7 @@
 // never by editing copy. Capability ids, MCP tool names and routes never change
 // with the brand; only what a person reads does.
 
-export type Brand = {
+type Brand = {
   id: string;
   /** The product name people read in the app chrome, titles and emails. */
   name: string;
@@ -51,10 +51,7 @@ const BRANDS: Record<string, Brand> = {
   },
 };
 
-export function resolveBrand(
-  id: string | undefined,
-  supportEmail?: string,
-): Brand {
+function resolveBrand(id: string | undefined, supportEmail?: string): Brand {
   const brand = (id && BRANDS[id]) || BRANDS.openseo;
   return supportEmail ? { ...brand, supportEmail } : brand;
 }

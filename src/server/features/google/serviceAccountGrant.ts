@@ -6,7 +6,7 @@ import {
   SERVICE_ACCOUNT_PREFIX,
 } from "@/server/lib/googleServiceAccount";
 
-export type ServiceAccountGrant = {
+type ServiceAccountGrant = {
   id: string;
   accountId: string;
   email: string;
