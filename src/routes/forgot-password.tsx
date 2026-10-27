@@ -27,6 +27,9 @@ function ForgotPasswordPage() {
   const redirectTo = normalizeAuthRedirect(search.redirect);
   const isHostedMode = isHostedClientAuthMode();
   const authOptions = useAuthOptions();
+  // Until the lookup answers, promise nothing: whether a reset link can be
+  // sent depends on it.
+  const checkingResetMail = isHostedMode && authOptions.isPending;
   // No mail provider: a reset link can never arrive, so never claim one did.
   // A failed lookup counts as no mail provider too.
   const resetMailUnavailable =
@@ -83,6 +86,25 @@ function ForgotPasswordPage() {
     </p>
   );
 
+  if (checkingResetMail) {
+    return (
+      <AuthPageShell>
+        <AuthPageCard
+          title="Forgot password"
+          helperText="Checking how we can help you reset your password."
+          footer={backToSignIn}
+        >
+          <div
+            className="flex justify-center py-2 text-base-content/50"
+            aria-busy
+          >
+            <span className="loading loading-spinner loading-md" />
+          </div>
+        </AuthPageCard>
+      </AuthPageShell>
+    );
+  }
+
   if (resetMailUnavailable) {
     return (
       <AuthPageShell>
@@ -102,7 +124,7 @@ function ForgotPasswordPage() {
             </p>
             <a
               className="btn btn-soft w-full"
-              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Lunar Optimize password reset")}`}
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Password reset")}`}
             >
               Email support
             </a>
@@ -183,9 +205,7 @@ function ForgotPasswordPage() {
                   ) : null}
                   <button
                     className="btn btn-soft w-full"
-                    disabled={
-                      !isHostedMode || isSubmitting || authOptions.isPending
-                    }
+                    disabled={!isHostedMode || isSubmitting}
                   >
                     {isSubmitting ? "Sending reset link..." : "Send reset link"}
                   </button>

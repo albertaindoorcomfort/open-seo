@@ -21,5 +21,8 @@ export function useAuthOptions() {
       return authOptionsSchema.parse(await response.json());
     },
     staleTime: Infinity,
+    // Pages wait on this before saying what they offer; one retry keeps a
+    // failed lookup from holding them for the default backoff.
+    retry: 1,
   });
 }
