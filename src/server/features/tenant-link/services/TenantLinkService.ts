@@ -28,7 +28,8 @@ type LinkResult =
 
 type UnlinkResult =
   | { status: "unlinked"; link: TenantLink }
-  | { status: "not_linked" };
+  | { status: "not_linked" }
+  | { status: "conflict"; reason: "linked_to_other_tenant"; link: TenantLink };
 
 // One line per change, for the journal. Ids and the actor only. Warn level
 // because the box runs wrangler dev with --log-level warn, which drops
@@ -78,8 +79,19 @@ async function link(input: LinkInput): Promise<LinkResult> {
   };
 
   if (current) {
-    const row = await TenantLinkRepository.repoint(next);
-    if (!row) throw new Error("Tenant link disappeared during replace");
+    const row = await TenantLinkRepository.repoint(next, current.tenantId);
+    if (!row) {
+      // Another writer moved or removed the link after the read above.
+      const latest = await TenantLinkRepository.getByOrganizationId(
+        input.organizationId,
+      );
+      if (!latest) throw new Error("Tenant link disappeared during replace");
+      return {
+        status: "conflict",
+        reason: "organization_linked_to_other_tenant",
+        link: latest,
+      };
+    }
     logChange({
       event: "replaced",
       organizationId: row.organizationId,
@@ -106,11 +118,21 @@ async function link(input: LinkInput): Promise<LinkResult> {
 async function unlink(input: {
   organizationId: string;
   actor: string;
+  // When set, only the link to this tenant is removed.
+  tenantId?: string;
 }): Promise<UnlinkResult> {
   const removed = await TenantLinkRepository.deleteByOrganizationId(
     input.organizationId,
+    input.tenantId,
   );
-  if (!removed) return { status: "not_linked" };
+  if (!removed) {
+    const current = input.tenantId
+      ? await TenantLinkRepository.getByOrganizationId(input.organizationId)
+      : null;
+    return current
+      ? { status: "conflict", reason: "linked_to_other_tenant", link: current }
+      : { status: "not_linked" };
+  }
   logChange({
     event: "unlinked",
     organizationId: removed.organizationId,

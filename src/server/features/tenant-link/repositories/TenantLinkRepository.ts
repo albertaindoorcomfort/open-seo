@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { organization, organizationTenantLink } from "@/db/schema";
 
@@ -42,9 +42,13 @@ async function insert(link: TenantLink): Promise<TenantLink> {
   return row;
 }
 
-// Moves an existing link to another tenant. Null when the organization had no
-// link by the time the update ran.
-async function repoint(link: TenantLink): Promise<TenantLink | null> {
+// Moves an existing link from `fromTenantId` to another tenant. Null when the
+// organization was no longer linked to `fromTenantId` by the time the update
+// ran, so a concurrent change is never overwritten.
+async function repoint(
+  link: TenantLink,
+  fromTenantId: string,
+): Promise<TenantLink | null> {
   const [row] = await db
     .update(organizationTenantLink)
     .set({
@@ -52,17 +56,32 @@ async function repoint(link: TenantLink): Promise<TenantLink | null> {
       linkedAt: link.linkedAt,
       linkedBy: link.linkedBy,
     })
-    .where(eq(organizationTenantLink.organizationId, link.organizationId))
+    .where(
+      and(
+        eq(organizationTenantLink.organizationId, link.organizationId),
+        eq(organizationTenantLink.tenantId, fromTenantId),
+      ),
+    )
     .returning();
   return row ?? null;
 }
 
+// With `tenantId`, deletes only the link to that tenant.
 async function deleteByOrganizationId(
   organizationId: string,
+  tenantId?: string,
 ): Promise<TenantLink | null> {
+  const byOrganization = eq(
+    organizationTenantLink.organizationId,
+    organizationId,
+  );
   const [row] = await db
     .delete(organizationTenantLink)
-    .where(eq(organizationTenantLink.organizationId, organizationId))
+    .where(
+      tenantId === undefined
+        ? byOrganization
+        : and(byOrganization, eq(organizationTenantLink.tenantId, tenantId)),
+    )
     .returning();
   return row ?? null;
 }

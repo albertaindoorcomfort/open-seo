@@ -1,5 +1,6 @@
 import { getEnvValueSync } from "@/server/lib/runtime-env";
 import { timingSafeEqual } from "@/server/lib/timingSafeEqual";
+import { arrivedThroughProxy } from "@/server/lib/loopbackOnly";
 
 // Scheduled work for runtimes that never fire crons (wrangler dev on the
 // Studio box, vite preview in the Docker image). A host timer POSTs here with
@@ -22,7 +23,11 @@ export async function handleCronTrigger(
   run: (cron: string) => Promise<void>,
 ): Promise<Response> {
   const secret = getEnvValueSync(env, "CRON_TRIGGER_SECRET");
-  if (!secret || secret.length < MIN_SECRET_LENGTH) {
+  if (
+    !secret ||
+    secret.length < MIN_SECRET_LENGTH ||
+    arrivedThroughProxy(request)
+  ) {
     return new Response("Not found", { status: 404 });
   }
   if (request.method !== "POST") {

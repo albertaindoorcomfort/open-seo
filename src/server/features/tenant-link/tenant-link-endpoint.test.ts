@@ -11,6 +11,7 @@ import {
   vi,
 } from "vitest";
 import type * as EndpointModule from "./tenant-link-endpoint";
+import type * as RepositoryModule from "./repositories/TenantLinkRepository";
 
 // Real in-memory SQLite built from the real migration, so the primary key, the
 // unique tenant index and the organization foreign key all run as shipped.
@@ -23,6 +24,7 @@ const ENV = { OPTIMIZE_PLATFORM_SECRET: SECRET };
 let client: Client;
 let log: ReturnType<typeof vi.spyOn>;
 let handleTenantLinkRequest: typeof EndpointModule.handleTenantLinkRequest;
+let TenantLinkRepository: typeof RepositoryModule.TenantLinkRepository;
 
 beforeAll(async () => {
   client = createClient({ url: "file::memory:" });
@@ -41,6 +43,8 @@ beforeAll(async () => {
     ].join("\n"),
   );
   ({ handleTenantLinkRequest } = await import("./tenant-link-endpoint"));
+  ({ TenantLinkRepository } =
+    await import("./repositories/TenantLinkRepository"));
 });
 
 afterAll(() => {
@@ -60,9 +64,18 @@ beforeEach(async () => {
 
 function call(
   method: string,
-  options: { query?: string; body?: unknown; token?: string; env?: object },
+  options: {
+    query?: string;
+    body?: unknown;
+    token?: string;
+    env?: object;
+    headers?: Record<string, string>;
+  },
 ) {
-  const headers = new Headers({ "content-type": "application/json" });
+  const headers = new Headers({
+    "content-type": "application/json",
+    ...options.headers,
+  });
   if (options.token !== "") {
     headers.set("authorization", `Bearer ${options.token ?? SECRET}`);
   }
@@ -233,5 +246,75 @@ describe("tenant link endpoint", () => {
     );
     expect((await call("POST", { body, token: "" })).status).toBe(401);
     expect(await linkRowCount()).toBe(0);
+  });
+  it("only unlinks the named tenant when one is given", async () => {
+    await link("org_a", "tenant_1");
+    const unlink = (tenantId: string) =>
+      call("POST", {
+        body: {
+          action: "unlink",
+          organizationId: "org_a",
+          actor: "mc:op",
+          tenantId,
+        },
+      });
+
+    const stale = await unlink("tenant_0");
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({
+      status: "conflict",
+      link: { tenantId: "tenant_1" },
+    });
+    expect(await linkRowCount()).toBe(1);
+    expect((await unlink("tenant_1")).status).toBe(200);
+    expect(await linkRowCount()).toBe(0);
+  });
+
+  it("does not overwrite a link that moved after the replace read it", async () => {
+    await link("org_a", "tenant_1");
+    // Another writer moves the link to tenant_3 between this replace's read
+    // and its update.
+    const stale = {
+      ...(await TenantLinkRepository.getByOrganizationId("org_a"))!,
+    };
+    await client.execute(
+      "UPDATE organization_tenant_link SET tenant_id = 'tenant_3' WHERE organization_id = 'org_a'",
+    );
+    vi.spyOn(TenantLinkRepository, "getByOrganizationId").mockResolvedValueOnce(
+      stale,
+    );
+
+    const response = await link("org_a", "tenant_2", { replace: true });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      reason: "organization_linked_to_other_tenant",
+      link: { tenantId: "tenant_3" },
+    });
+    expect(await readLink("?organizationId=org_a")).toMatchObject({
+      link: { tenantId: "tenant_3" },
+    });
+  });
+
+  it("reads ids the way writes store them", async () => {
+    await link(" org_a ", "tenant_1");
+
+    expect(await readLink("?organizationId=%20org_a%20")).toMatchObject({
+      link: { tenantId: "tenant_1" },
+    });
+    const tooLong = await call("GET", {
+      query: `?tenantId=${"t".repeat(201)}`,
+    });
+    expect(tooLong.status).toBe(400);
+  });
+
+  it("does not exist for requests that came through the public proxy", async () => {
+    for (const header of ["x-forwarded-for", "x-real-ip"]) {
+      const response = await call("GET", {
+        query: "?tenantId=tenant_1",
+        headers: { [header]: "203.0.113.9" },
+      });
+      expect(response.status).toBe(404);
+    }
   });
 });

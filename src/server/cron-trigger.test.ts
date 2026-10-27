@@ -55,6 +55,16 @@ describe("cron trigger", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
+  it("does not exist for requests that came through the public proxy", async () => {
+    const run = vi.fn();
+    for (const header of ["x-forwarded-for", "x-real-ip"]) {
+      const request = post("*/5 * * * *");
+      request.headers.set(header, "203.0.113.9");
+      expect((await handleCronTrigger(request, env, run)).status).toBe(404);
+    }
+    expect(run).not.toHaveBeenCalled();
+  });
+
   // A drifted expression fails silently: the timer gets 400 and nothing runs.
   it("allows exactly the wrangler.jsonc crons, and the box timers send them", () => {
     const wrangler = readFileSync("wrangler.jsonc", "utf8");

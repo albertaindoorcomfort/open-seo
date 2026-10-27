@@ -22,8 +22,10 @@ lives in the table `organization_tenant_link` (migration
 ## Calling it
 
 Mission Control runs on the same box, so it calls the app on loopback:
-`http://127.0.0.1:3601/internal/tenant-link`. Do not call it through the public
-host: once the P0-2 nginx rule is live, `/internal/` answers 404 there.
+`http://127.0.0.1:3601/internal/tenant-link`. The public host answers 404 for
+`/internal/` (the P0-2 nginx rule ships in the same release), and the app itself
+answers 404 to any request carrying `X-Forwarded-For` or `X-Real-IP`, which
+nginx always adds. Only a loopback call reaches the route.
 
 Every request carries `Authorization: Bearer <OPTIMIZE_PLATFORM_SECRET>`.
 
@@ -31,7 +33,7 @@ Every request carries `Authorization: Bearer <OPTIMIZE_PLATFORM_SECRET>`.
 | ------------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
 | `GET`         | `?organizationId=<id>` or `?tenantId=<id>` (exactly one)           | `200 {"link": {...}}` or `200 {"link": null}`           |
 | `POST` link   | `{"action":"link","organizationId","tenantId","actor","replace"?}` | `200` with `status` `linked`, `unchanged` or `replaced` |
-| `POST` unlink | `{"action":"unlink","organizationId","actor"}`                     | `200` with `status` `unlinked` or `not_linked`          |
+| `POST` unlink | `{"action":"unlink","organizationId","actor","tenantId"?}`         | `200` with `status` `unlinked` or `not_linked`          |
 
 `actor` is who made the change, as the platform names it (for example the
 Mission Control user id). A link reads back as `organizationId`, `tenantId`,
@@ -45,8 +47,14 @@ current `link`):
 - `409`, reason `tenant_linked_to_other_organization`: the tenant already
   belongs to another organization. `replace` does not override this; unlink
   that organization first.
+- `409` on unlink, reason `linked_to_other_tenant`: `tenantId` was sent and
+  the organization is linked to a different tenant. Nothing was removed.
+- `409` on replace, reason `organization_linked_to_other_tenant`: another
+  writer moved the link between this call's read and its update. Read the
+  current `link` and decide again.
 - `422`, status `unknown_organization`: no such Optimize organization.
-- `400`: bad JSON or body. `401`: wrong or missing Bearer token. `404`: secret
+- `400`: bad JSON or body, or an id that is empty or over 200 characters after
+  trimming (ids are trimmed on reads and writes alike). `401`: wrong or missing Bearer token. `404`: secret
   unset or too short. `500`: retry; a retry gets the clear answer above.
 
 Relinking the same pair changes nothing (`unchanged`, original `linkedAt` and

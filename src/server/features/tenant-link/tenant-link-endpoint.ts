@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { TenantLinkService } from "@/server/features/tenant-link/services/TenantLinkService";
 import { captureServerError } from "@/server/lib/posthog";
+import { arrivedThroughProxy } from "@/server/lib/loopbackOnly";
 import { getEnvValueSync } from "@/server/lib/runtime-env";
+import { timingSafeEqual } from "@/server/lib/timingSafeEqual";
 
 // Machine-principal endpoint for the platform (Mission Control) to set and read
 // organization-to-tenant links. Callers send
@@ -10,7 +12,7 @@ import { getEnvValueSync } from "@/server/lib/runtime-env";
 //
 //   GET  ?organizationId=<id> or ?tenantId=<id>  -> { link: <link> | null }
 //   POST { action: "link", organizationId, tenantId, actor, replace? }
-//   POST { action: "unlink", organizationId, actor }
+//   POST { action: "unlink", organizationId, actor, tenantId? }
 
 export const TENANT_LINK_PATH = "/internal/tenant-link";
 
@@ -34,6 +36,8 @@ const writeSchema = z.discriminatedUnion("action", [
       action: z.literal("unlink"),
       organizationId: idSchema,
       actor: idSchema,
+      // When set, only the link to this tenant is removed (409 otherwise).
+      tenantId: idSchema.optional(),
     })
     .strict(),
 ]);
@@ -46,21 +50,31 @@ const LINK_STATUS_CODES = {
   unknown_organization: 422,
 } as const;
 
-// Compares in time that depends only on the secret's length.
-function bearerMatches(header: string | null, secret: string): boolean {
-  const expected = new TextEncoder().encode(`Bearer ${secret}`);
-  const given = new TextEncoder().encode(header ?? "");
-  let difference = expected.length ^ given.length;
-  for (let index = 0; index < expected.length; index += 1) {
-    difference |= (expected[index] ?? 0) ^ (given[index] ?? 0);
-  }
-  return difference === 0;
-}
+const UNLINK_STATUS_CODES = {
+  unlinked: 200,
+  not_linked: 200,
+  conflict: 409,
+} as const;
 
 async function readLink(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
-  const organizationId = params.get("organizationId");
-  const tenantId = params.get("tenantId");
+  // Same trimming and length cap as the POST body, so a read finds what a
+  // write stored.
+  const optionalId = (name: string) => {
+    const value = params.get(name);
+    if (value === null) return { ok: true as const, id: null };
+    const parsed = idSchema.safeParse(value);
+    return parsed.success
+      ? { ok: true as const, id: parsed.data }
+      : { ok: false as const };
+  };
+  const organization = optionalId("organizationId");
+  const tenant = optionalId("tenantId");
+  if (!organization.ok || !tenant.ok) {
+    return Response.json({ error: "invalid id" }, { status: 400 });
+  }
+  const organizationId = organization.id;
+  const tenantId = tenant.id;
   if (organizationId && !tenantId) {
     const link =
       await TenantLinkService.getTenantForOrganization(organizationId);
@@ -93,7 +107,10 @@ async function writeLink(request: Request): Promise<Response> {
   }
 
   if (parsed.data.action === "unlink") {
-    return Response.json(await TenantLinkService.unlink(parsed.data));
+    const result = await TenantLinkService.unlink(parsed.data);
+    return Response.json(result, {
+      status: UNLINK_STATUS_CODES[result.status],
+    });
   }
   const result = await TenantLinkService.link(parsed.data);
   return Response.json(result, { status: LINK_STATUS_CODES[result.status] });
@@ -104,13 +121,22 @@ export async function handleTenantLinkRequest(
   env: object,
 ): Promise<Response> {
   const secret = getEnvValueSync(env, "OPTIMIZE_PLATFORM_SECRET")?.trim();
-  if (!secret || secret.length < MIN_SECRET_LENGTH) {
+  if (
+    !secret ||
+    secret.length < MIN_SECRET_LENGTH ||
+    arrivedThroughProxy(request)
+  ) {
     return new Response("Not found", { status: 404 });
   }
   if (request.method !== "GET" && request.method !== "POST") {
     return new Response(null, { status: 405, headers: { Allow: "GET, POST" } });
   }
-  if (!bearerMatches(request.headers.get("authorization"), secret)) {
+  if (
+    !timingSafeEqual(
+      request.headers.get("authorization") ?? "",
+      `Bearer ${secret}`,
+    )
+  ) {
     return new Response("Unauthorized", { status: 401 });
   }
 
