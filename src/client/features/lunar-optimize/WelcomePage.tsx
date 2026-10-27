@@ -9,10 +9,15 @@ import {
   Search,
 } from "lucide-react";
 import landingCss from "@/client/styles/lunar-optimize.css?url";
+import { useAuthOptions } from "@/client/features/auth/useAuthOptions";
 import {
   LUNAR_MONTHLY_PRICE_USD,
   LUNAR_MONTHLY_USAGE_CREDIT_USD,
 } from "@/shared/billing";
+import { SUPPORT_EMAIL } from "@/shared/support";
+
+const SIGN_UP_HREF = "/sign-up?redirect=%2F";
+const REQUEST_ACCESS_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Lunar Optimize access request")}`;
 
 const capabilities = [
   {
@@ -64,7 +69,23 @@ export const landingHead = () => ({
   links: [{ rel: "stylesheet", href: landingCss }],
 });
 
+// While sign-up is invite-only, the call to action asks for access instead of
+// promising a workspace the sign-up hook would refuse. Until the server
+// answers, assume invite-only: never promise what may not work.
+function PrimaryCta({ inviteOnly }: { inviteOnly: boolean }) {
+  return (
+    <a
+      className="lo-button lo-button-primary"
+      href={inviteOnly ? REQUEST_ACCESS_HREF : SIGN_UP_HREF}
+    >
+      {inviteOnly ? "Request access" : "Create your workspace"}{" "}
+      <ArrowRight size={17} aria-hidden="true" />
+    </a>
+  );
+}
+
 export function WelcomePage() {
+  const inviteOnly = useAuthOptions().data?.inviteOnly ?? true;
   return (
     <main className="lo-page">
       <a className="lo-skip" href="#main-content">
@@ -115,16 +136,17 @@ export function WelcomePage() {
             freshness of each observation close to the decision it informs.
           </p>
           <div className="lo-actions">
-            <a
-              className="lo-button lo-button-primary"
-              href="/sign-up?redirect=%2F"
-            >
-              Create your workspace <ArrowRight size={17} aria-hidden="true" />
-            </a>
+            <PrimaryCta inviteOnly={inviteOnly} />
             <a className="lo-button lo-button-secondary" href="#capabilities">
               Explore the platform
             </a>
           </div>
+          {inviteOnly ? (
+            <p className="lo-hero-note">
+              Sign-up is by invitation while billing is set up. Have an
+              invitation? <a href={SIGN_UP_HREF}>Create your account</a>.
+            </p>
+          ) : null}
           <p className="lo-hero-note">
             Provider data and usage credits vary by feature. Subscription terms
             appear before checkout.
@@ -267,8 +289,12 @@ export function WelcomePage() {
               workspace shows your remaining balance.
             </p>
           </div>
-          <a className="lo-button lo-button-secondary" href="/subscribe">
-            View enrollment status <ArrowRight size={17} aria-hidden="true" />
+          <a
+            className="lo-button lo-button-secondary"
+            href={inviteOnly ? REQUEST_ACCESS_HREF : "/subscribe"}
+          >
+            {inviteOnly ? "Request access" : "View enrollment status"}{" "}
+            <ArrowRight size={17} aria-hidden="true" />
           </a>
         </div>
       </section>
@@ -278,9 +304,7 @@ export function WelcomePage() {
         <h2 id="final-title">
           Your next search opportunity starts with better evidence.
         </h2>
-        <a className="lo-button lo-button-primary" href="/sign-up?redirect=%2F">
-          Create your workspace <ArrowRight size={17} aria-hidden="true" />
-        </a>
+        <PrimaryCta inviteOnly={inviteOnly} />
       </section>
       <footer className="lo-footer">
         <span>

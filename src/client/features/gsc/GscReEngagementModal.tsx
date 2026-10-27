@@ -60,6 +60,8 @@ export function GscReEngagementModal({
     grantQuery.isSuccess &&
     Boolean(onboardingQuery.data?.completedAt) &&
     !onboardingQuery.data?.gscNudgeDismissedAt &&
+    // Without Google client ids the Connect button could only fail.
+    Boolean(grantQuery.data?.googleOAuthConfigured) &&
     !grantQuery.data?.connected;
 
   React.useEffect(() => {

@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
-import { getAuthOptions } from "@/serverFunctions/config";
+import { useAuthOptions } from "@/client/features/auth/useAuthOptions";
 import {
   getCurrentAuthRedirect,
   getOAuthSignedQuery,
@@ -42,11 +41,7 @@ export function AuthMethodChooser({
   onContinueWithEmail: () => void;
 }) {
   // Google sign-in shows only when this deployment has its ids set.
-  const options = useQuery({
-    queryKey: ["auth-options"],
-    queryFn: () => getAuthOptions(),
-    staleTime: Infinity,
-  });
+  const options = useAuthOptions();
   const showGoogle = options.data?.google === true;
 
   return (

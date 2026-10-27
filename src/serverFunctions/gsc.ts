@@ -10,7 +10,6 @@ import {
 } from "@/server/features/google/selfHostedOAuth";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { getPublicOrigin } from "@/server/mcp/public-origin";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import {
   requireAuthenticatedContext,
   requireProjectContext,
@@ -31,24 +30,28 @@ const startSelfHostedLinkSchema = z.object({
 export const getGscGrantStatus = createServerFn({ method: "GET" })
   .middleware(requireAuthenticatedContext)
   .handler(async ({ context }) => {
-    return { connected: await GscService.userHasGrant(context.userId) };
+    const [connected, googleOAuthConfigured] = await Promise.all([
+      GscService.userHasGrant(context.userId),
+      hasSelfHostedGoogleOAuthConfig(),
+    ]);
+    return { connected, googleOAuthConfigured };
   });
 
 export const getGscConnection = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(projectScopedSchema)
   .handler(async ({ context }) => {
-    const [connection, currentUserHasGrant, hosted, gscConfigured] =
-      await Promise.all([
-        GscService.getConnection(context.projectId),
-        GscService.userHasGrant(context.userId),
-        isHostedServerAuthMode(),
-        hasSelfHostedGoogleOAuthConfig(),
-      ]);
+    const [connection, currentUserHasGrant, gscConfigured] = await Promise.all([
+      GscService.getConnection(context.projectId),
+      GscService.userHasGrant(context.userId),
+      hasSelfHostedGoogleOAuthConfig(),
+    ]);
     return {
       connected: Boolean(connection),
       currentUserHasGrant,
-      googleOAuthConfigured: hosted || gscConfigured,
+      // Hosted links through the same Google client ids (auth-config.ts), so
+      // without them a Connect button could only fail.
+      googleOAuthConfigured: gscConfigured,
       siteUrl: connection?.siteUrl ?? null,
       connectedByEmail: connection?.connectedAccountEmail ?? null,
       connectedAt: connection?.createdAt ?? null,

@@ -11,7 +11,6 @@ import {
   createSelfHostedGoogleAuthorizationUrl,
   GA4_INTEGRATION,
 } from "@/server/features/google/selfHostedOAuth";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { getPublicOrigin } from "@/server/mcp/public-origin";
 import {
@@ -32,17 +31,17 @@ export const getGa4Connection = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(projectScopedSchema)
   .handler(async ({ context }) => {
-    const [connection, currentUserHasGrant, hosted, ga4Configured] =
-      await Promise.all([
-        Ga4Service.getConnection(context.projectId),
-        Ga4Service.userHasGrant(context.userId),
-        isHostedServerAuthMode(),
-        hasSelfHostedGoogleOAuthConfig(),
-      ]);
+    const [connection, currentUserHasGrant, ga4Configured] = await Promise.all([
+      Ga4Service.getConnection(context.projectId),
+      Ga4Service.userHasGrant(context.userId),
+      hasSelfHostedGoogleOAuthConfig(),
+    ]);
     return {
       connected: Boolean(connection),
       currentUserHasGrant,
-      googleOAuthConfigured: hosted || ga4Configured,
+      // Hosted links through the same Google client ids (auth-config.ts), so
+      // without them a Connect button could only fail.
+      googleOAuthConfigured: ga4Configured,
       propertyId: connection?.propertyId ?? null,
       propertyDisplayName: connection?.propertyDisplayName ?? null,
       propertyTimeZone: connection?.propertyTimeZone ?? null,

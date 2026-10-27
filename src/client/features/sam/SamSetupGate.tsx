@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { ShieldAlert, Wrench } from "lucide-react";
+import { Info, ShieldAlert, Wrench } from "lucide-react";
+import { isHostedClientAuthMode } from "@/lib/auth-mode";
 
+// Shown instead of the chat while no model key is configured. Hosted users
+// cannot add one, so they get a short explanation instead of setup steps.
 export function SamSetupGate({
   errorMessage,
   isRefetching,
@@ -10,6 +13,30 @@ export function SamSetupGate({
   isRefetching: boolean;
   onRetry: () => void;
 }) {
+  if (isHostedClientAuthMode()) {
+    return (
+      <section className="rounded-2xl border border-base-300 bg-base-100 p-6 md:p-7">
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 rounded-xl bg-base-200 p-2.5 text-base-content/60">
+            <Info className="size-5" />
+          </div>
+          <div className="max-w-3xl space-y-1.5">
+            <h2 className="text-xl font-semibold">SAM is not available yet</h2>
+            <p className="text-sm text-base-content/70">
+              SAM, the in-app AI agent, is switched off while its AI model is
+              being set up. Every research tool works without it, and your own
+              AI agent can use them through the MCP server on the{" "}
+              <Link className="link" to="/ai">
+                AI &amp; MCP
+              </Link>{" "}
+              page.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section>
       <div className="rounded-2xl border border-base-300 bg-base-100 p-6 md:p-7 space-y-5">

@@ -11,6 +11,8 @@ import { BillingFeatureBreakdown } from "@/client/features/billing/BillingFeatur
 import { parseTopUpAmount } from "@/client/features/billing/HostedBillingContentUtils";
 import { getBillingRouteState } from "@/client/features/billing/route-state";
 import { getCustomerPlanStatus } from "@/client/features/billing/plan-detection";
+import { PlaceholderBillingDetails } from "@/client/features/billing/PlaceholderBillingDetails";
+import { useBillingMode } from "@/client/features/billing/useBillingMode";
 import {
   AUTUMN_PAID_PLAN_ID,
   BILLING_ROUTE,
@@ -41,17 +43,20 @@ function BillingPage() {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasSession = Boolean(session?.user?.id);
+  const { billingMode, placeholder } = useBillingMode(hasSession);
   const customerQuery = useCustomer({
     queryOptions: {
-      enabled: Boolean(session?.user?.id),
+      enabled: hasSession && billingMode === "autumn",
     },
   });
 
   const planStatus = getCustomerPlanStatus(customerQuery.data);
   const isFreePlan = planStatus === "free";
   const billingRouteState = getBillingRouteState({
-    hasSession: Boolean(session?.user?.id),
+    hasSession,
     isSessionPending,
+    billingMode,
     isCustomerLoading: customerQuery.isLoading,
     isCustomerError: customerQuery.isError,
   });
@@ -71,6 +76,21 @@ function BillingPage() {
 
   if (billingRouteState === "loading") {
     return null;
+  }
+
+  if (billingRouteState === "placeholder" && placeholder) {
+    return (
+      <div className="mx-auto w-full max-w-2xl space-y-5 p-4 py-10 md:p-6 md:py-12">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold">Billing</h1>
+          <p className="text-sm text-base-content/70">
+            Lunar Optimize is in early access. Paid plans are not on sale yet,
+            so there is nothing to buy and nobody is charged.
+          </p>
+        </div>
+        <PlaceholderBillingDetails summary={placeholder} />
+      </div>
+    );
   }
 
   if (billingRouteState === "error") {
