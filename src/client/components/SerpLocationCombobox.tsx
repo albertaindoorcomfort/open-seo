@@ -33,6 +33,7 @@ export function SerpLocationCombobox({
   const [results, setResults] = useState<SerpLocationResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [isSample, setIsSample] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,7 +75,8 @@ export function SerpLocationCombobox({
     searchSerpLocations({ data: { query: trimmed, countryCode } })
       .then((data) => {
         if (cancelled) return;
-        setResults(data);
+        setResults(data.locations);
+        setIsSample(data.sample);
         setOpen(true);
         setActiveIndex(0);
       })
@@ -181,6 +183,13 @@ export function SerpLocationCombobox({
           {isError ? (
             <p className="px-3 py-2 text-sm text-error">
               Unable to load locations
+            </p>
+          ) : results.length === 0 && isSample ? (
+            <p className="px-3 py-2 text-sm text-base-content/70">
+              <span className="badge badge-warning badge-outline badge-sm mr-2 font-semibold">
+                Sample data
+              </span>
+              City search needs live DataForSEO data.
             </p>
           ) : results.length === 0 ? (
             <p className="px-3 py-2 text-sm text-base-content/50">

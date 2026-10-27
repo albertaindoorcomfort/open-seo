@@ -11,6 +11,10 @@ import {
 
 export type Json = Record<string, unknown>;
 
+export function isJson(value: unknown): value is Json {
+  return typeof value === "object" && value !== null;
+}
+
 /** A request field as text: strings and numbers only, anything else is absent. */
 export function textOf(value: unknown): string | undefined {
   if (typeof value === "string") return value;
@@ -220,6 +224,19 @@ export function referringDomainItems(target: string): Json[] {
     lost_date: null,
     backlinks_spam_score: pick(`${target}${i}`, "rdspam", 0, 20),
     referring_domains: pick(`${target}${i}`, "rdrd", 1, 40),
+  }));
+}
+
+/** Top pages for the backlinks page, most linked first, under the target's own domain. */
+export function domainPageItems(target: string): Json[] {
+  const top = pick(target, "pagebl", 200, 5000);
+  return Array.from({ length: 10 }, (_, i) => ({
+    type: "backlinks_domain_pages_summary",
+    url: i === 0 ? `https://${target}/` : `https://${target}/sample-page-${i}`,
+    backlinks: Math.round(top / (i + 1)),
+    referring_domains: Math.round(pick(target, "pagerd", 20, 400) / (i + 1)),
+    rank: pick(`${target}${i}`, "pagerank", 10, 500),
+    broken_backlinks: pick(`${target}${i}`, "pagebroken", 0, 12),
   }));
 }
 

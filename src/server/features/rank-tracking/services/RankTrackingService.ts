@@ -8,6 +8,7 @@ import {
   fetchKeywordMetricsForList,
 } from "@/server/lib/dataforseo";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
+import { trackDataforseoSample } from "@/server/lib/dataforseo/sample-scope";
 import { AppError } from "@/server/lib/errors";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import type {
@@ -264,20 +265,24 @@ async function refreshKeywordMetrics(
   if (keywords.length === 0) return { updated: 0 };
 
   const client = createDataforseoClient(billingCustomer);
-  const metrics = await fetchKeywordMetricsForList(client, {
-    keywords: keywords.map((kw) => kw.keyword),
-    locationCode: config.locationCode,
-    // Trackers can pair any SERP language with any country; the keyword-data
-    // APIs only serve the country's own languages.
-    languageCode: resolveKeywordDataLanguage(
-      config.locationCode,
-      config.languageCode,
-    ),
-    // Local configs get volume/CPC scoped to the tracked city; national
-    // numbers can overstate local demand by orders of magnitude.
-    locationName: config.locationName ?? undefined,
-    creditFeature: "rank_tracking",
-  });
+  const { value: metrics, sample } = await trackDataforseoSample(() =>
+    fetchKeywordMetricsForList(client, {
+      keywords: keywords.map((kw) => kw.keyword),
+      locationCode: config.locationCode,
+      // Trackers can pair any SERP language with any country; the keyword-data
+      // APIs only serve the country's own languages.
+      languageCode: resolveKeywordDataLanguage(
+        config.locationCode,
+        config.languageCode,
+      ),
+      // Local configs get volume/CPC scoped to the tracked city; national
+      // numbers can overstate local demand by orders of magnitude.
+      locationName: config.locationName ?? undefined,
+      creditFeature: "rank_tracking",
+    }),
+  );
+  // Sample volume, KD and CPC are never stored as the tracker's own metrics.
+  if (sample) return { updated: 0 };
   const byKeyword = new Map(
     metrics.map((metric) => [metric.keyword.toLowerCase(), metric]),
   );

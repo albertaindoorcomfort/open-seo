@@ -238,9 +238,13 @@ export function BacklinkPulseCard({
   return (
     <CardShell
       title="Backlink pulse"
-      stamp={`Backlinks · snapshot ${formatDay(backlinks.capturedAt)}${
-        refreshing ? " · refreshing…" : ""
-      }`}
+      stamp={
+        backlinks.sample
+          ? "Sample numbers · not stored"
+          : `Backlinks · snapshot ${formatDay(backlinks.capturedAt)}${
+              refreshing ? " · refreshing…" : ""
+            }`
+      }
       action={
         <Link
           to="/p/$projectId/backlinks"
@@ -252,6 +256,11 @@ export function BacklinkPulseCard({
         </Link>
       }
     >
+      {backlinks.sample ? (
+        <span className="badge badge-warning badge-outline mb-3 font-semibold">
+          Sample data
+        </span>
+      ) : null}
       <div className="grid grid-cols-2 gap-3">
         <Stat
           label="Ref. domains"

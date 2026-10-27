@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { isHostedAuthMode } from "@/lib/auth-mode";
 import { normalizeDomainInput } from "@/server/lib/domainUtils";
 import { asAppError } from "@/server/lib/errors";
-import { fetchDomainRankOverview } from "@/server/lib/dataforseo/labs";
+import { fetchLiveDomainRankOverview } from "@/server/features/widget-audit/liveDomainRankOverview";
 import {
   createPublicWidgetAuditHandler,
   PUBLIC_WIDGET_AUDIT_TURNSTILE_ACTION,
@@ -412,7 +412,7 @@ export function createWidgetAuditSearchGateway(
 export const productionSearchGateway = createWidgetAuditSearchGateway({
   runtimeEnv: env,
   now: () => new Date(),
-  fetchProvider: fetchDomainRankOverview,
+  fetchProvider: fetchLiveDomainRankOverview,
   verifyTurnstile: verifyCloudflareTurnstile,
 });
 

@@ -11,8 +11,8 @@ const SAMPLE_TEXT: Record<string, string> = {
 };
 
 /**
- * The persistent "Sample data" notice: while DataForSEO has no key or no credits, keyword, results, rank and
- * backlink numbers are made-up samples (server/lib/dataforseo/sample.ts). It never blocks a screen.
+ * The "Sample data" notice: while DataForSEO has no key, or refused a call this browser made, research numbers
+ * and AI answers are made-up samples (server/lib/dataforseo/sample.ts). It never blocks a screen.
  */
 function SeoApiStatusBanners({
   sampleReason,
@@ -35,8 +35,9 @@ function SeoApiStatusBanners({
               </span>
               <span className="text-base-content/80">
                 {SAMPLE_TEXT[sampleReason] ?? "DataForSEO is not answering"}, so
-                keyword, results, rank and backlink numbers are samples. Add
-                DATAFORSEO_API_KEY or top up credits for live data (
+                the research numbers and AI answers shown are samples and are
+                never saved. Add DATAFORSEO_API_KEY or top up credits for live
+                data (
                 <Link
                   {...dataforseoHelpLinkOptions}
                   className="link link-primary font-medium"

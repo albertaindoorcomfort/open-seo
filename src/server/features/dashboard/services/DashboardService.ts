@@ -11,6 +11,7 @@ import {
   createDataforseoClient,
   normalizeBacklinksTarget,
 } from "@/server/lib/dataforseo";
+import { trackDataforseoSample } from "@/server/lib/dataforseo/sample-scope";
 
 // Daily cadence: fresh numbers each visit without per-visit spend; a dormant
 // project costs nothing because refreshes are visit-triggered.
@@ -67,6 +68,8 @@ export type DashboardBacklinkSummary = {
   lostReferringDomains: number | null;
   capturedAt: string;
   stale: boolean;
+  /** Sample numbers (no DataForSEO key or credits): shown, labelled, never stored. */
+  sample: boolean;
 };
 
 type DashboardOverview = {
@@ -204,6 +207,13 @@ async function getBacklinkSummary(
   const snapshot =
     await BacklinkSnapshotRepository.getLatestForProject(projectId);
   if (!snapshot || snapshot.domain !== domain) return null;
+  return toBacklinkSummary(snapshot, false);
+}
+
+function toBacklinkSummary(
+  snapshot: Omit<DashboardBacklinkSummary, "stale" | "sample">,
+  sample: boolean,
+): DashboardBacklinkSummary {
   return {
     domain: snapshot.domain,
     rank: snapshot.rank,
@@ -215,6 +225,7 @@ async function getBacklinkSummary(
     lostReferringDomains: snapshot.lostReferringDomains,
     capturedAt: snapshot.capturedAt,
     stale: !isSnapshotFresh(snapshot.capturedAt),
+    sample,
   };
 }
 
@@ -248,11 +259,13 @@ async function ensureBacklinkSnapshot(input: {
   const dataforseo = createDataforseoClient(input.billingCustomer);
 
   try {
-    const summary = await dataforseo.backlinks.summary({
-      target: normalized.apiTarget,
-      includeSubdomains: normalized.includeSubdomains,
-    });
-    await BacklinkSnapshotRepository.insert({
+    const { value: summary, sample } = await trackDataforseoSample(() =>
+      dataforseo.backlinks.summary({
+        target: normalized.apiTarget,
+        includeSubdomains: normalized.includeSubdomains,
+      }),
+    );
+    const snapshot = {
       projectId,
       domain,
       rank: summary.rank ?? null,
@@ -268,7 +281,11 @@ async function ensureBacklinkSnapshot(input: {
         summary.lost_reffering_domains ??
         null,
       capturedAt: new Date().toISOString(),
-    });
+    };
+    // Sample numbers are returned for the card to label, never stored: a
+    // stored snapshot would stand in for the project's real numbers for a day.
+    if (sample) return toBacklinkSummary(snapshot, true);
+    await BacklinkSnapshotRepository.insert(snapshot);
   } catch (error) {
     if (latestMatchesDomain) {
       console.error("dashboard: backlink snapshot refresh failed", error);

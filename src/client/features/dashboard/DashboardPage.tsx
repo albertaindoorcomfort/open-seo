@@ -298,6 +298,9 @@ export function DashboardPage({ projectId }: { projectId: string }) {
   }
 
   const showBacklinks = activation.domain !== null;
+  // Sample numbers are never stored, so the overview has none: the refresh
+  // answer itself carries them for the card to show, labelled.
+  const backlinks = overview?.backlinks ?? refreshMutation.data ?? null;
   const gscConnected = activation.gsc.connected;
   const ga4Connected = activation.ga4.connected;
 
@@ -360,12 +363,11 @@ export function DashboardPage({ projectId }: { projectId: string }) {
               ? [
                   {
                     key: "backlinks",
-                    hasData:
-                      overview?.backlinks != null || refreshMutation.isPending,
+                    hasData: backlinks !== null || refreshMutation.isPending,
                     node: (
                       <BacklinkPulseCard
                         projectId={projectId}
-                        backlinks={overview?.backlinks ?? null}
+                        backlinks={backlinks}
                         refreshing={refreshMutation.isPending}
                       />
                     ),
