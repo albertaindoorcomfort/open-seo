@@ -4,6 +4,7 @@ import { AppError } from "@/server/lib/errors";
 import { errorHandlingMiddleware } from "@/middleware/errorHandling";
 import type { EnsuredUserContext } from "@/middleware/ensure-user/types";
 import { ensureUserMiddleware } from "@/middleware/ensureUser";
+import { sampleDataMiddleware } from "@/middleware/sampleData";
 
 const ensuredUserContextSchema: z.ZodType<EnsuredUserContext> = z.object({
   userId: z.string(),
@@ -27,6 +28,7 @@ function getAuthenticatedContext(context: unknown): EnsuredUserContext {
 export const globalServerFunctionMiddleware = [
   errorHandlingMiddleware,
   ensureUserMiddleware,
+  sampleDataMiddleware,
 ] as const;
 
 export const requireAuthenticatedContext = [

@@ -12,6 +12,7 @@ import { BILLING_ROUTE } from "@/shared/billing";
 import { getSeoApiKeyStatus } from "@/serverFunctions/config";
 import { getProjects } from "@/serverFunctions/projects";
 import { getLastProjectId } from "@/client/lib/active-project";
+import { useResponseSampleReason } from "@/client/lib/sample-data";
 
 export function AuthenticatedAppLayout({
   children,
@@ -58,11 +59,12 @@ export function AuthenticatedAppLayout({
   });
   const seoApiKeyStatusError =
     shouldCheckSeoApiKeyStatus && seoApiKeyStatusQuery.isError;
-  // Sample mode (no key, or DataForSEO out of credits) is labelled, never a blocker.
-  const sampleReason =
-    shouldCheckSeoApiKeyStatus && seoApiKeyStatusQuery.data?.sample
-      ? seoApiKeyStatusQuery.data.reason
-      : null;
+  // Sample mode is labelled, never a blocker: no key for the deployment, or a
+  // response this browser received was answered with sample data.
+  const responseSampleReason = useResponseSampleReason();
+  const sampleReason = shouldCheckSeoApiKeyStatus
+    ? (seoApiKeyStatusQuery.data?.reason ?? responseSampleReason)
+    : null;
 
   return (
     <div className="flex h-[100dvh] bg-base-200">

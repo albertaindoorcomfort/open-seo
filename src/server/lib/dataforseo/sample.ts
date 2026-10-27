@@ -7,7 +7,8 @@
 // path, cost 0) so the existing parsers, billing and screens run unchanged, and
 // carries `lunar_sample: true`. Domains sit on the reserved .example TLD and
 // numbers are deterministic per keyword, so nothing can pass for a measurement.
-// The app shows a "Sample data" banner while sample mode is active.
+// Whether an answer was sample data is recorded per request (sample-scope.ts),
+// and the "Sample data" banner shows for the browser that received it.
 
 import { getRequiredEnvValue } from "@/server/lib/runtime-env";
 import { sampleKeywordIdeas } from "@/lib/seo-engine";
@@ -17,7 +18,9 @@ import {
   backlinksSummary,
   competitorItems,
   domainRankOverview,
+  domainPageItems,
   hash,
+  isJson,
   keywordData,
   keywordOf,
   pick,
@@ -27,27 +30,18 @@ import {
   textOf,
   type Json,
 } from "@/server/lib/dataforseo/sample-generators";
+import { aiOrLocalSampleResult } from "@/server/lib/dataforseo/sample-ai-local";
+import {
+  dataforseoSampleReason,
+  type SampleReason,
+} from "@/server/lib/dataforseo/sample-scope";
 
-type SampleReason = "no_key" | "auth" | "credits" | "quota";
-
-let lastReason: SampleReason | null = null;
-
-/** Why the most recent DataForSEO call in this process answered with sample data (null after a live answer). */
-export function dataforseoSampleReason(): SampleReason | null {
-  return lastReason;
-}
-
-export function markDataforseoLive(): void {
-  lastReason = null;
-}
-
-export function setDataforseoSampleReason(reason: SampleReason): void {
-  lastReason = reason;
-}
-
-/** True while DataForSEO answers with sample data: no key, or the latest call fell back. */
+/**
+ * True when data produced now may be sample data and so must not be stored: a
+ * call in this scope answered with sample data, or there is no key at all.
+ */
 export async function inDataforseoSampleMode(): Promise<boolean> {
-  if (lastReason !== null) return true;
+  if (dataforseoSampleReason() !== null) return true;
   return (await readDataforseoKey()) === null;
 }
 
@@ -87,12 +81,10 @@ export function sampleReasonFor(
   return null;
 }
 
-function isJson(value: unknown): value is Json {
-  return typeof value === "object" && value !== null;
-}
-
 /** The result array for one endpoint path (the part after /v3/). */
 function resultFor(path: string, task: Json): unknown[] {
+  const aiOrLocal = aiOrLocalSampleResult(path, task);
+  if (aiOrLocal) return aiOrLocal;
   const kw = keywordOf(task);
   const target = (textOf(task.target) ?? kw)
     .replace(/^https?:\/\//, "")
@@ -201,7 +193,6 @@ function resultFor(path: string, task: Json): unknown[] {
   }
   if (/serp\/google\/organic\/(live\/advanced|task_get\/advanced)/.test(path))
     return [serpResult(kw, task)];
-  if (/serp\/google\/organic\/task_post/.test(path)) return [];
   if (/backlinks\/summary\/live/.test(path)) return [backlinksSummary(target)];
   if (/backlinks\/backlinks\/live/.test(path)) {
     const items = backlinkItems(target);
@@ -211,6 +202,12 @@ function resultFor(path: string, task: Json): unknown[] {
   }
   if (/backlinks\/referring_domains\/live/.test(path)) {
     const items = referringDomainItems(target);
+    return [
+      { target, total_count: items.length, items_count: items.length, items },
+    ];
+  }
+  if (/backlinks\/domain_pages_summary\/live/.test(path)) {
+    const items = domainPageItems(target);
     return [
       { target, total_count: items.length, items_count: items.length, items },
     ];
@@ -252,18 +249,21 @@ export function sampleDataforseoBody(url: string, requestBody: unknown): Json {
     }
   })();
   const rel = pathname.replace(/^\/v3\//, "");
+  // DataForSEO accepts a queued task with 20100 "Task Created." and no result
+  // yet; the queued rank check reads any other status as a rejection.
+  const queued = rel.endsWith("/task_post");
   const tasks = (
     Array.isArray(requestBody) && requestBody.length > 0 ? requestBody : [{}]
   ).map((t, i) => {
     const task: Json = isJson(t) ? t : {};
-    const result = resultFor(rel, task);
+    const result = queued ? null : resultFor(rel, task);
     return {
       id: `sample-${hash(`${rel}${i}${JSON.stringify(task)}`).toString(16)}`,
-      status_code: 20000,
-      status_message: "Ok.",
+      status_code: queued ? 20100 : 20000,
+      status_message: queued ? "Task Created." : "Ok.",
       time: "0 sec.",
       cost: 0,
-      result_count: result.length,
+      result_count: result?.length ?? 0,
       path: rel.split("/"),
       data: { api: rel.split("/")[0], function: rel, ...task },
       result,

@@ -11,13 +11,16 @@ import {
 import { z } from "zod";
 import { AppError } from "@/server/lib/errors";
 import {
-  markDataforseoLive,
   parseRequestBody,
   readDataforseoKey,
   sampleDataforseoBody,
   sampleReasonFor,
-  setDataforseoSampleReason,
 } from "@/server/lib/dataforseo/sample";
+import {
+  inDataforseoSampleScope,
+  recordDataforseoAnswer,
+  type SampleReason,
+} from "@/server/lib/dataforseo/sample-scope";
 import type { ErrorCode } from "@/shared/error-codes";
 
 const API_BASE = "https://api.dataforseo.com";
@@ -96,11 +99,10 @@ function createAuthenticatedFetch(
   return async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
     const rawUrl = typeof url === "string" ? url : url.url;
     // Lunar Optimize: no key, or a refusal for auth, credits or quota, answers
-    // with labelled sample data (sample.ts) so every screen keeps working.
-    const sample = (
-      reason: Parameters<typeof setDataforseoSampleReason>[0],
-    ) => {
-      setDataforseoSampleReason(reason);
+    // with labelled sample data (sample.ts) so every screen keeps working. The
+    // answer is recorded in the caller's request scope only.
+    const sample = (reason: SampleReason) => {
+      recordDataforseoAnswer(reason);
       return new Response(
         JSON.stringify(
           sampleDataforseoBody(rawUrl, parseRequestBody(init?.body)),
@@ -125,15 +127,18 @@ function createAuthenticatedFetch(
 
     for (let attempt = 0; ; attempt++) {
       const response = await fetch(url, { ...init, headers, signal });
+      // Outside a scope (MCP, agents, workflows) a refusal could not be
+      // labelled or kept out of storage, so it fails as a real error instead.
+      const canSample = inDataforseoSampleScope();
       if (response.ok) {
         const taskCode = await firstTaskStatus(response);
         const reason = sampleReasonFor(response.status, taskCode);
-        if (reason) return sample(reason);
-        markDataforseoLive();
+        if (reason && canSample) return sample(reason);
+        if (!reason) recordDataforseoAnswer("live");
         return response;
       }
       const httpReason = sampleReasonFor(response.status);
-      if (httpReason) return sample(httpReason);
+      if (httpReason && canSample) return sample(httpReason);
 
       // Transient upstream 5xx on an idempotent read -> back off and retry.
       if (response.status >= 500 && attempt < maxServerErrorRetries) {

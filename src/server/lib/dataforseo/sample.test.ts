@@ -10,15 +10,21 @@ vi.mock("@/server/lib/runtime-env", () => ({
   }),
 }));
 
+import {
+  fetchLlmMentionsSearch,
+  fetchLlmResponse,
+} from "@/server/lib/dataforseo/ai";
+import { fetchDomainPagesSummary } from "@/server/lib/dataforseo/backlinks";
+import { fetchBusinessListingsSearch } from "@/server/lib/dataforseo/business";
 import { labsApi, serpApi } from "@/server/lib/dataforseo/core";
 import {
-  dataforseoSampleReason,
   inDataforseoSampleMode,
-  markDataforseoLive,
   sampleDataforseoBody,
   sampleRankPosition,
   sampleReasonFor,
 } from "@/server/lib/dataforseo/sample";
+import { trackDataforseoSample } from "@/server/lib/dataforseo/sample-scope";
+import { postRankCheckTasks } from "@/server/lib/dataforseo/serp";
 import {
   DataforseoLabsGoogleKeywordSuggestionsLiveRequestInfo,
   SerpGoogleOrganicLiveAdvancedRequestInfo,
@@ -26,9 +32,37 @@ import {
 
 beforeEach(() => {
   env.key = undefined;
-  markDataforseoLive();
 });
 afterEach(() => vi.unstubAllGlobals());
+
+/** A DataForSEO answer whose first task carries `taskStatus` (40200 = out of credits). */
+function dataforseoAnswer(taskStatus: number, httpStatus = 200): Response {
+  return new Response(
+    JSON.stringify({
+      status_code: 20000,
+      tasks: [
+        {
+          status_code: taskStatus,
+          status_message: "x",
+          path: ["serp"],
+          cost: 0,
+          result: taskStatus === 20000 ? [{ items: [] }] : null,
+        },
+      ],
+    }),
+    { status: httpStatus, headers: { "content-type": "application/json" } },
+  );
+}
+
+function searchSerp(keyword: string) {
+  return serpApi().googleOrganicLiveAdvanced([
+    new SerpGoogleOrganicLiveAdvancedRequestInfo({
+      keyword,
+      location_code: 2124,
+      language_code: "en",
+    }),
+  ]);
+}
 
 const envelopeSchema = z.object({
   tasks: z.array(z.object({ result: z.array(z.unknown()) })),
@@ -114,80 +148,114 @@ describe("authenticated fetch in sample mode", () => {
   it("answers with sample data and makes no network call when DATAFORSEO_API_KEY is missing", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
-    const res = await labsApi().googleKeywordSuggestionsLive([
-      new DataforseoLabsGoogleKeywordSuggestionsLiveRequestInfo({
-        keyword: "heat pump",
-        location_code: 2124,
-        language_code: "en",
-        limit: 10,
-      }),
-    ]);
+    const { value: res, answer } = await trackDataforseoSample(() =>
+      labsApi().googleKeywordSuggestionsLive([
+        new DataforseoLabsGoogleKeywordSuggestionsLiveRequestInfo({
+          keyword: "heat pump",
+          location_code: 2124,
+          language_code: "en",
+          limit: 10,
+        }),
+      ]),
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(res?.tasks?.[0]?.result?.[0]?.items?.length).toBeGreaterThan(5);
-    expect(dataforseoSampleReason()).toBe("no_key");
-    expect(await inDataforseoSampleMode()).toBe(true);
+    expect(answer).toBe("no_key");
   });
 
-  it("falls back to sample data when DataForSEO is out of credits, and goes live again after a good answer", async () => {
+  it("keeps one request's refusal out of another request running at the same time", async () => {
     env.key = "a2V5OnNlY3JldA==";
     vi.stubGlobal(
       "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              status_code: 20000,
-              tasks: [
-                {
-                  status_code: 40200,
-                  status_message: "Payment Required.",
-                  result: null,
-                },
-              ],
-            }),
-            { status: 200, headers: { "content-type": "application/json" } },
-          ),
+      vi.fn(async (_url: unknown, init?: RequestInit) =>
+        dataforseoAnswer(
+          typeof init?.body === "string" && init.body.includes("refused")
+            ? 40200
+            : 20000,
+        ),
       ),
     );
-    const res = await serpApi().googleOrganicLiveAdvanced([
-      new SerpGoogleOrganicLiveAdvancedRequestInfo({
-        keyword: "heat pump",
-        location_code: 2124,
-        language_code: "en",
-      }),
-    ]);
-    expect(res?.tasks?.[0]?.status_code).toBe(20000);
-    expect(dataforseoSampleReason()).toBe("credits");
+    const request = (keyword: string) =>
+      trackDataforseoSample(async () => {
+        await searchSerp(keyword);
+        return inDataforseoSampleMode();
+      });
 
+    const [refused, live] = await Promise.all([
+      request("refused keyword"),
+      request("heat pump"),
+    ]);
+
+    expect(refused).toMatchObject({ value: true, answer: "credits" });
+    expect(live).toMatchObject({ value: false, answer: "live" });
+  });
+
+  it("fails a refusal outside any request scope as a real error, not as unlabelled sample data", async () => {
+    env.key = "a2V5OnNlY3JldA==";
     vi.stubGlobal(
       "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              status_code: 20000,
-              cost: 0.002,
-              tasks: [
-                {
-                  status_code: 20000,
-                  path: ["serp"],
-                  cost: 0.002,
-                  result: [{ items: [] }],
-                },
-              ],
-            }),
-            { status: 200, headers: { "content-type": "application/json" } },
-          ),
-      ),
+      vi.fn(async () => dataforseoAnswer(40200, 402)),
     );
-    await serpApi().googleOrganicLiveAdvanced([
-      new SerpGoogleOrganicLiveAdvancedRequestInfo({
-        keyword: "heat pump",
-        location_code: 2124,
-        language_code: "en",
-      }),
-    ]);
-    expect(dataforseoSampleReason()).toBeNull();
-    expect(await inDataforseoSampleMode()).toBe(false);
+    await expect(searchSerp("heat pump")).rejects.toThrow(
+      "DataForSEO HTTP 402",
+    );
+  });
+
+  it("accepts sample task_post tasks with 20100, so queued rank checks stay on the queued path", async () => {
+    const posted = await postRankCheckTasks({
+      tasks: [{ keyword: "heat pump", keywordId: "kw_1", device: "desktop" }],
+      locationCode: 2124,
+      languageCode: "en",
+      depth: 20,
+      targetDomain: "acme.com",
+    });
+    expect(posted.data).toHaveLength(1);
+    expect(posted.data[0]).toMatchObject({
+      keyword: "heat pump",
+      keywordId: "kw_1",
+      device: "desktop",
+    });
+    expect(posted.data[0]?.taskId).toMatch(/^sample-/);
+  });
+
+  it("answers the AI, backlink top pages and local listings endpoints with labelled samples", async () => {
+    const answer = await fetchLlmResponse({
+      userPrompt: "best heat pump installer",
+      modelSlug: "chat_gpt",
+      modelName: "gpt-5",
+    });
+    expect(answer.data.items?.[0]?.sections?.[0]?.text).toMatch(
+      /^Sample answer, not a model response/,
+    );
+
+    const mentions = await fetchLlmMentionsSearch({
+      target: { domain: "acme.com" },
+      platform: "google",
+      locationCode: 2124,
+      languageCode: "en",
+    });
+    expect(mentions.data.length).toBeGreaterThan(0);
+    expect(
+      mentions.data.every((m) => m.question?.startsWith("Sample question")),
+    ).toBe(true);
+
+    const pages = await fetchDomainPagesSummary({ target: "acme.com" });
+    expect(pages.data.items.length).toBeGreaterThan(0);
+    expect(
+      pages.data.items.every((p) => p.url?.startsWith("https://acme.com/")),
+    ).toBe(true);
+
+    const listings = await fetchBusinessListingsSearch({
+      locationCoordinate: "51.04,-114.07,5000",
+      limit: 10,
+    });
+    expect(listings.data.length).toBeGreaterThan(0);
+    expect(
+      listings.data.every(
+        (l) =>
+          l.title?.startsWith("Sample business") &&
+          l.domain?.endsWith(".example"),
+      ),
+    ).toBe(true);
   });
 });

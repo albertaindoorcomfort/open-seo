@@ -2,6 +2,11 @@ import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { serpApi } from "@/server/lib/dataforseo/core";
 import { assertOk } from "@/server/lib/dataforseo/envelope";
+import {
+  recordDataforseoAnswer,
+  trackDataforseoSample,
+  type DataforseoAnswer,
+} from "@/server/lib/dataforseo/sample-scope";
 import { formatLocationLabel } from "@/shared/keyword-locations";
 
 export interface SerpLocationResult {
@@ -76,22 +81,32 @@ export async function fetchSerpLocationsForCountry(
 // the cache and each fetch + parse the ~9.5MB origin payload. Entries are
 // deleted on settle so the parsed array isn't retained past the fill (and a
 // failed fill — e.g. the owning request got cancelled — isn't sticky).
-const inflightFills = new Map<string, Promise<SerpLocationResult[]>>();
+const inflightFills = new Map<
+  string,
+  Promise<{ locations: SerpLocationResult[]; answer: DataforseoAnswer | null }>
+>();
 
-function fillFromOrigin(iso: string): Promise<SerpLocationResult[]> {
-  const inflight = inflightFills.get(iso);
-  if (inflight) return inflight;
-
-  const fill = fetchFromDataforseo(iso)
-    .then(async (fresh) => {
-      await env.KV.put(cacheKey(iso), JSON.stringify(fresh), {
-        expirationTtl: KV_TTL_SECONDS,
-      });
-      return fresh;
-    })
-    .finally(() => inflightFills.delete(iso));
-  inflightFills.set(iso, fill);
-  return fill;
+async function fillFromOrigin(iso: string): Promise<SerpLocationResult[]> {
+  let fill = inflightFills.get(iso);
+  if (!fill) {
+    fill = trackDataforseoSample(() => fetchFromDataforseo(iso))
+      .then(async ({ value: locations, answer, sample }) => {
+        // A sample answer has no cities (only countries, which are filtered
+        // out): caching it would leave the city picker empty for 30 days.
+        if (!sample) {
+          await env.KV.put(cacheKey(iso), JSON.stringify(locations), {
+            expirationTtl: KV_TTL_SECONDS,
+          });
+        }
+        return { locations, answer };
+      })
+      .finally(() => inflightFills.delete(iso));
+    inflightFills.set(iso, fill);
+  }
+  const { locations, answer } = await fill;
+  // A request that joined another request's fill is told what it received too.
+  if (answer) recordDataforseoAnswer(answer);
+  return locations;
 }
 
 async function fetchFromDataforseo(iso: string): Promise<SerpLocationResult[]> {

@@ -1,17 +1,21 @@
 import { env } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
 import { requireAuthenticatedContext } from "@/serverFunctions/middleware";
-import { dataforseoSampleReason } from "@/server/lib/dataforseo/sample";
 import { hasGoogleSocialConfig } from "@/lib/auth";
 
 export const getSeoApiKeyStatus = createServerFn({ method: "GET" })
   .middleware(requireAuthenticatedContext)
   .handler(() => {
     const configured = Boolean(env.DATAFORSEO_API_KEY?.trim());
-    // Without a key (or after DataForSEO refused a call for auth, credits or
-    // quota) the data screens run on labelled sample data instead of blocking.
-    const reason = configured ? dataforseoSampleReason() : "no_key";
-    return { configured, sample: reason !== null, reason };
+    // Without a key the data screens run on labelled sample data instead of
+    // blocking. A refusal for auth, credits or quota is reported with the
+    // response that received it (src/middleware/sampleData.ts), never from
+    // here, so it cannot reach another user's banner.
+    return {
+      configured,
+      sample: !configured,
+      reason: configured ? null : ("no_key" as const),
+    };
   });
 
 // Public (no session): which sign-in methods this deployment offers, so the
