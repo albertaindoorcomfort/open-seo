@@ -40,13 +40,13 @@ const BRANDS: Record<string, Brand> = {
   },
   aic: {
     id: "aic",
-    name: "AIC SEO",
+    name: "Optimize",
     owner: "Alberta Indoor Comfort",
     logo: "/brands/aic/logo.png",
     assetDir: "/brands/aic",
     supportEmail: "",
     websiteUrl: "https://albertaindoorcomfort.com",
-    crawlerAgent: "AIC-SEO-Audit/1.0",
+    crawlerAgent: "AIC-Optimize-Audit/1.0",
     showUpstreamPromotion: false,
   },
 };
