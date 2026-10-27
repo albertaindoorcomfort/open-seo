@@ -49,6 +49,13 @@ jobs:
             type=sha,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
 
+      # The image is built once, with its build-time env baked in, and a
+      # container must run with the same values (docs/SELF_HOSTING_DOCKER.md).
+      # Upstream keeps the Dockerfile defaults, which match compose.yaml. The
+      # fork builds the AIC brand; its deploy sets VITE_BRAND=aic and the same
+      # VITE_BRAND_SUPPORT_EMAIL as this repository variable (empty if unset).
+      # The builder stage runs on the runner's platform, so arm64 emulation
+      # covers only the runtime install.
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -56,5 +63,8 @@ jobs:
           file: Dockerfile.selfhost
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            VITE_BRAND=${{ github.repository == 'albertaindoorcomfort/open-seo' && 'aic' || '' }}
+            VITE_BRAND_SUPPORT_EMAIL=${{ github.repository == 'albertaindoorcomfort/open-seo' && vars.VITE_BRAND_SUPPORT_EMAIL || '' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

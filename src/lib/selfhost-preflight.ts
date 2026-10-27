@@ -240,7 +240,7 @@ export function runSelfhostPreflight(env: EnvRecord): PreflightResult {
           name: "ALLOWED_HOST",
           level: "info",
           message:
-            'Not set — only localhost access will work. Behind a reverse proxy or tunnel, set ALLOWED_HOST=yourdomain.com or requests are blocked with Vite\'s "Blocked request" page.',
+            'Not set — only localhost access will work. Behind a reverse proxy or tunnel, set ALLOWED_HOST=yourdomain.com or requests are blocked with a "Blocked request" page.',
         },
   );
 
@@ -270,7 +270,7 @@ export function formatPreflightReport(result: PreflightResult): string {
   lines.push(
     result.failed
       ? "\nPreflight failed — fix the [FAIL] items above and restart. Nothing was started."
-      : "\nPreflight passed. The app now builds inside the container (~1-2 minutes on first start before it serves).",
+      : "\nPreflight passed. Applying database migrations, then serving the built app.",
   );
 
   return lines.join("\n");

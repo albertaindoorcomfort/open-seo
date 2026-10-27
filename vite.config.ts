@@ -6,6 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { devtools } from "@tanstack/devtools-vite";
 import { leanWorkerBundle } from "./vite-plugin-lean-worker-bundle";
+import { BUILD_ENV_PREFIXES } from "./scripts/selfhost-build-env";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -22,14 +23,9 @@ export default defineConfig(({ mode }) => {
   const emitSourcemaps = env.POSTHOG_SOURCEMAPS === "true";
 
   return {
-    envPrefix: [
-      "VITE_",
-      "AUTH_MODE",
-      "BYPASS_EMAIL_VERIFICATION",
-      "POSTHOG_PUBLIC_KEY",
-      "POSTHOG_HOST",
-      "TURNSTILE_SITE_KEY",
-    ],
+    // Shared with the Docker image's build-time env check, which must cover
+    // exactly what vite inlines into the bundle.
+    envPrefix: BUILD_ENV_PREFIXES,
     server: {
       allowedHosts,
       port,

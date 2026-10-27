@@ -5,10 +5,14 @@
 **/.wrangler
 **/node_modules
 **/dist
+**/dist-sourcemaps
 **/coverage
 *.log
 Dockerfile
 .env
 .env.*
 !.env.example
+# Local worker secrets: the build would copy them into dist and the image.
+**/.dev.vars
+**/.dev.vars.*
 .alchemy/

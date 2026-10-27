@@ -1,5 +1,17 @@
-# Use the full Node image so workerd has a working CA trust store for outbound HTTPS.
-FROM node:22
+# syntax=docker/dockerfile:1
+
+# Self-host image, in three stages:
+#   builder       the whole toolchain. Builds the app once, with the build-time
+#                 env given as build args, because vite inlines it.
+#   runtime-deps  a production-only install of the app's exact wrangler (and so
+#                 workerd and miniflare) for the target platform.
+#   runtime       node:22-slim with the built app, the D1 migrations and that
+#                 wrangler install. A start checks the env, applies migrations
+#                 and serves; it never builds (see docker-entrypoint.sh).
+
+# The build output is JavaScript and static assets, so it is built once, on the
+# build host's platform, even when the image targets several.
+FROM --platform=$BUILDPLATFORM node:22 AS builder
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -11,18 +23,79 @@ RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
+# The runtime's package: wrangler alone, at the version just installed, with the
+# app's lockfile and pnpm settings (overrides, release-age floor).
+COPY scripts/selfhost-image.mjs scripts/
+RUN mkdir /runtime && node scripts/selfhost-image.mjs runtime-package /runtime
+
 COPY . .
+
+# Build-time env: every name vite inlines (vite.config.ts envPrefix). A
+# container must run with the same values; otherwise its entrypoint stops and
+# names the build args to rebuild with. The defaults match compose.yaml. A
+# build arg left empty counts as unset.
+ARG VITE_BRAND
+ARG VITE_BRAND_SUPPORT_EMAIL
+ARG VITE_SHOW_DEVTOOLS=false
+ARG AUTH_MODE=local_noauth
+ARG BYPASS_EMAIL_VERIFICATION
+ARG POSTHOG_PUBLIC_KEY
+ARG POSTHOG_HOST
+ARG TURNSTILE_SITE_KEY
+
+# The repo .npmrc raises the V8 heap ceiling (node-options) so the ~7400-module
+# SSR build doesn't OOM. `prepare` bundles the container-start scripts and the
+# front worker into dist/selfhost/ and records the build-time env.
+RUN pnpm run build && node scripts/selfhost-image.mjs prepare
+
+
+FROM node:22 AS runtime-deps
+
+WORKDIR /runtime
+
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
+
+COPY --from=builder /runtime/ ./
+COPY --from=builder /app/scripts/selfhost-image.mjs /tmp/selfhost-image.mjs
+
+# Not frozen: the lockfile is the app's, so pnpm prunes it to wrangler's tree,
+# keeping every locked version; check-runtime fails the build on any package
+# version the app's lockfile does not already pin.
+RUN pnpm install --prod --no-frozen-lockfile --config.node-linker=hoisted \
+  && node /tmp/selfhost-image.mjs check-runtime /runtime
+
+
+FROM node:22-slim AS runtime
+
+# workerd checks outbound TLS against the system trust store, which the slim
+# image does not ship.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# NODE_ENV: the old start-time build put NODE_ENV=production into the worker
+# env (better-auth reads it). The WRANGLER_* settings stop wrangler sending
+# metrics, checking npm for updates and writing a second copy of the logs.
+ENV NODE_ENV=production \
+  WRANGLER_SEND_METRICS=false \
+  WRANGLER_HIDE_BANNER=true \
+  WRANGLER_WRITE_LOGS=false
+
+WORKDIR /app
+
+COPY --from=runtime-deps /runtime/node_modules ./node_modules
+COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/docker-entrypoint.sh ./
 
 EXPOSE 3001
 
-# Readiness probe against the unauthenticated setup/health endpoint. The long
-# start period covers migrations plus the boot-time vite build (skipped when
-# the previous start's build is still valid; see docker-entrypoint.sh).
-HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \
+# Probe the unauthenticated setup/health endpoint, which (unlike /health/*)
+# never counts as telemetry activity. A start applies migrations and serves,
+# with no build, so it answers within seconds; the start period leaves room for
+# a slow host. A deployment may probe /health/ready instead, which also works
+# here and returns 503 until the database, KV and storage answer.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/health').then(function(r){process.exit(r.ok?0:1)}).catch(function(){process.exit(1)})"
 
-# Startup (preflight, migrations, conditional build, serve) lives in
-# docker-entrypoint.sh. The repo .npmrc raises the V8 heap ceiling
-# (node-options) so the ~7400-module SSR build doesn't OOM under Node's ~2GB
-# default.
 CMD ["sh", "docker-entrypoint.sh"]

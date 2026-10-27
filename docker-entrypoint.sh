@@ -1,39 +1,40 @@
 #!/bin/sh
-# Self-host container entrypoint. vite build inlines the envPrefix'd client
-# envs (see vite.config.ts) into the bundle, so the build must run at container
-# start — but the output stays valid until those envs or the image change.
-# Fingerprint them and skip the build when the last start's output matches; an
-# image update lands a fresh container with no build output, so new code always
-# rebuilds.
+# Self-host container entrypoint. The image already holds the built app (see
+# Dockerfile.selfhost), so a start only checks the env, applies migrations and
+# serves the built workers with wrangler dev. Nothing is built here.
+#
+# State (D1, KV, R2, Durable Objects, Workflows) persists under
+# .wrangler/state, the open_seo_data volume: the same files the old
+# start-time-build image wrote through vite preview, so both images share it.
 set -e
+cd "$(dirname "$0")"
 
 echo 'OpenSEO sends an anonymous usage heartbeat (counts only). Disable: OPENSEO_TELEMETRY_DISABLED=1. Details: docs/SELF_HOSTING_DOCKER.md#telemetry'
 
-# The preflight validates env BEFORE the slow steps, so misconfiguration fails
-# in seconds with the exact fix instead of after a multi-minute build.
-pnpm exec tsx scripts/selfhost-preflight.ts
+# The preflight validates env first, so misconfiguration fails in seconds
+# with the exact fix.
+node dist/selfhost/preflight.mjs
 
-pnpm run db:migrate:local
+# vite inlined the build-time env (VITE_*, AUTH_MODE, ...) into the bundle when
+# the image was built. A container with different values would serve a bundle
+# that disagrees with its server, so stop and name the build args instead.
+node dist/selfhost/build-env.mjs check dist/.openseo-build-env
 
-# POSTHOG_SOURCEMAPS (CI sourcemap uploads) moves vite's outDir; keep the
-# fingerprint marker beside the output it describes.
-if [ "${POSTHOG_SOURCEMAPS:-}" = "true" ]; then OUT_DIR=dist-sourcemaps; else OUT_DIR=dist; fi
-FP_FILE="$OUT_DIR/.openseo-build-env"
+WRANGLER="node --no-warnings --experimental-vm-modules node_modules/wrangler/wrangler-dist/cli.js"
+STATE="$PWD/.wrangler/state"
 
-# Everything that changes build output: the envPrefix prefixes from
-# vite.config.ts (keep in sync) plus POSTHOG_SOURCEMAPS.
-FINGERPRINT="$(env | grep -E '^(VITE_|AUTH_MODE|BYPASS_EMAIL_VERIFICATION|POSTHOG_PUBLIC_KEY|POSTHOG_HOST|TURNSTILE_SITE_KEY|POSTHOG_SOURCEMAPS)' | sort | sha256sum | cut -d' ' -f1)"
-# A missing sha256sum would yield an empty, always-matching fingerprint and
-# silently disable rebuilds — fail loudly instead.
-test -n "$FINGERPRINT"
+# The built config's migrations_dir resolves to dist/server/drizzle, a link to
+# ./drizzle. A no-op when the store is already migrated.
+$WRANGLER d1 migrations apply DB --local --config dist/server/wrangler.json --persist-to "$STATE"
 
-if [ -f "$FP_FILE" ] && [ "$(cat "$FP_FILE")" = "$FINGERPRINT" ]; then
-  echo "Reusing existing build (build-relevant env unchanged)."
-else
-  echo "Building client + server (first start, changed build env, or new image)..."
-  rm -f "$FP_FILE"
-  pnpm run build
-  printf '%s' "$FINGERPRINT" > "$FP_FILE"
-fi
-
-exec pnpm exec vite preview --host 0.0.0.0 --port "${PORT:-3001}"
+# The front worker is first, so it receives every request: it applies the Host
+# allowlist and X-Forwarded-Proto the way vite preview did, then hands the
+# request to the app (scripts/selfhost-front-worker.ts). The site-audit
+# worker runs beside the app, as it did under vite preview.
+exec $WRANGLER dev \
+  --config dist/selfhost/front/wrangler.json \
+  --config dist/server/wrangler.json \
+  --config dist/open_seo_audit/wrangler.json \
+  --local --ip 0.0.0.0 --port "${PORT:-3001}" \
+  --persist-to "$STATE" \
+  --show-interactive-dev-session=false

@@ -1,7 +1,9 @@
 /**
  * Container-start preflight for Docker self-hosting. Validates the environment
- * before migrations and the vite build so misconfiguration fails in seconds
- * with the exact fix. Run via: pnpm exec tsx scripts/selfhost-preflight.ts
+ * before migrations and serving so misconfiguration fails in seconds with the
+ * exact fix. The image bundles it (scripts/selfhost-image.mjs) and runs
+ * dist/selfhost/preflight.mjs; from a checkout, run it with
+ * pnpm exec tsx scripts/selfhost-preflight.ts
  *
  * Exits non-zero on hard failures (invalid AUTH_MODE, missing auth config for
  * the selected mode). Warnings and info lines never block startup.
