@@ -79,13 +79,37 @@ describe("getSubscribeRouteState", () => {
     // Regression: the error branch ran first, so a checkout that is off on
     // purpose read as "Billing unavailable" with a dead Try again.
     const checkoutOff = { ...base, checkoutEnabled: false };
+    // A failed lookup has no customer to read managed access from.
     expect(
-      getSubscribeRouteState({ ...checkoutOff, isCustomerError: true }),
+      getSubscribeRouteState({
+        ...checkoutOff,
+        isCustomerError: true,
+        hasManagedAccess: false,
+      }),
     ).toBe("checkoutDisabled");
     expect(
       getSubscribeRouteState({ ...checkoutOff, isUpgradeFlow: true }),
     ).toBe("checkoutDisabled");
     expect(getSubscribeRouteState({ ...checkoutOff, planStatus: "paid" })).toBe(
+      "redirectToApp",
+    );
+  });
+
+  it("waits for the customer while checkout is off", () => {
+    // Regression: "subscriptions are being configured" flashed before the
+    // customer loaded, even for users about to be sent into the app.
+    expect(
+      getSubscribeRouteState({
+        ...base,
+        checkoutEnabled: false,
+        isCustomerLoading: true,
+      }),
+    ).toBe("loading");
+  });
+
+  it("sends free-plan users who did not ask to upgrade into the app while checkout is off", () => {
+    // Regression: they were stopped on the checkout-off page instead.
+    expect(getSubscribeRouteState({ ...base, checkoutEnabled: false })).toBe(
       "redirectToApp",
     );
   });

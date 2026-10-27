@@ -58,11 +58,20 @@ export function getSubscribeRouteState(args: {
 
   // Checkout is off on purpose. This comes before every error branch: a
   // failed billing lookup must not read as an error for a checkout nobody can
-  // use. Paying customers still go straight into the app.
+  // use. The customer still decides where the user belongs, so wait for it:
+  // paying customers, and free-plan users who did not ask to upgrade, go
+  // straight into the app, the same as with checkout on.
   if (!args.checkoutEnabled) {
-    return args.planStatus === "paid"
-      ? ("redirectToApp" as const)
-      : ("checkoutDisabled" as const);
+    if (args.isCustomerLoading) {
+      return "loading" as const;
+    }
+    if (
+      args.planStatus === "paid" ||
+      (args.hasManagedAccess && !args.isUpgradeFlow)
+    ) {
+      return "redirectToApp" as const;
+    }
+    return "checkoutDisabled" as const;
   }
 
   if (args.isCustomerLoading) {
